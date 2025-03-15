@@ -3,7 +3,7 @@ from datetime import datetime
 
 
 def show():
-    st.title("Tacto Dashboard")
+    st.title("Visa Officer Dashboard")
     # Dashboard stats
     col1, col2, col3 = st.columns(3)
     with col1:

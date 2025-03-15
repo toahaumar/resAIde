@@ -48,12 +48,17 @@ st.sidebar.button(
 st.sidebar.info("Officer: Jane Wilson")
 st.sidebar.info(f"Date: {datetime.now().strftime('%Y-%m-%d')}")
 
-# Display the appropriate page
-if st.session_state.page == "home":
-    home.show()
-elif st.session_state.page == "applications":
-    applications.show()
-elif st.session_state.page == "evaluation":
-    evaluation.show()
-elif st.session_state.page == "resources":
-    resources.show()
+def main():
+    # Display the appropriate page
+    if st.session_state.page == "home":
+        home.show()
+    elif st.session_state.page == "applications":
+        applications.show()
+    elif st.session_state.page == "evaluation":
+        evaluation.show()
+    elif st.session_state.page == "resources":
+        resources.show()
+
+if __name__ == "__main__":
+    main()
+
