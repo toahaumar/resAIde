@@ -175,7 +175,7 @@ def show():
                 if st.button("Save Document Feedback"):
                     save_feedback(app_id, 'document_status', feedback)
                     st.session_state.feedback_section = None  # Reset feedback section
-                    st.rerun()  # Rerun to update the expander
+                    st.experimental_rerun()  # Rerun to update the expander
             
             # Display saved feedback if it exists
             if app_id in EVALUATION_FEEDBACK and 'document_status' in EVALUATION_FEEDBACK[app_id]:
@@ -231,7 +231,7 @@ def show():
                 if st.button("Save Criminal History Feedback"):
                     save_feedback(app_id, 'criminal_history_status', feedback)
                     st.session_state.feedback_section = None  # Reset feedback section
-                    st.rerun()  # Rerun to update the expander
+                    st.experimental_rerun()  # Rerun to update the expander
             
             # Display saved feedback if it exists
             if app_id in EVALUATION_FEEDBACK and 'criminal_history_status' in EVALUATION_FEEDBACK[app_id]:

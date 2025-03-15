@@ -1,12 +1,12 @@
 import streamlit as st
-import pandas as pd
 from datetime import datetime
 from pages import home, applications, evaluation, resources
 from utils.data import initialize_data
 
+
 # Configure the page
 st.set_page_config(
-    page_title="Visa Officer Portal", layout="wide", initial_sidebar_state="expanded"
+    page_title="Visa Officer Dashboard", layout="wide", initial_sidebar_state="expanded"
 )
 
 # Initialize session state
@@ -35,21 +35,20 @@ for _, app in new_apps.iterrows():
         st.session_state.notifications.append(notification)
         st.toast(notification)
 
-# Sidebar navigation
-st.sidebar.title("Quick Links")
-st.sidebar.button("Home", on_click=lambda: setattr(st.session_state, "page", "home"))
-st.sidebar.button(
-    "Applications",
-    on_click=lambda: setattr(st.session_state, "page", "applications"),
-)
-# st.sidebar.button(
-#     "Evaluation", on_click=lambda: setattr(st.session_state, "page", "resources")
-# )
-st.sidebar.info("Officer: Jane Wilson")
-st.sidebar.info(f"Date: {datetime.now().strftime('%Y-%m-%d')}")
+# Create a top navigation bar
+col1, col2 = st.columns([6, 1])  # Adjust column widths as needed
+
+with col1:
+    st.button("Home", on_click=lambda: setattr(st.session_state, "page", "home"))
+    st.button("Applications", on_click=lambda: setattr(st.session_state, "page", "applications"))
+
+with col2:
+    st.write("**Officer:** Jane Wilson", unsafe_allow_html=True)  # Officer's name on the top right
+    st.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d')}", unsafe_allow_html=True)  # Current date on the top right
+
 
 def main():
-    # Display the appropriate page
+    # Main content based on the selected page
     if st.session_state.page == "home":
         home.show()
     elif st.session_state.page == "applications":
