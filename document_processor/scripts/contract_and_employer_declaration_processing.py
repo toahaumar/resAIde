@@ -393,18 +393,220 @@ def analyze_blue_card_fit(declaration_details, blue_card_criteria, client, model
     except Exception as e:
         return f"Error during analysis: {e}"
 
+def classify_contract(
+    client,
+    employment_contract,
+    candidate_signature_path,
+    candidate_name,
+    candidate_address,
+    passport_expiry_date,
+    submission_date,
+    EXTRACT_MODEL,
+    SIGNATURE_COMPARE_MODEL,
+    FINAL_ANALYSIS_MODEL
+):
+    """
+    Generates a markdown representation of the employment contract via OCR,
+    extracts and compares signatures, parses structured JSON from the OCR output,
+    checks employee info and employment start date, and finally classifies the contract.
+    
+    Returns:
+        dict: A JSON object with classification details (e.g., {"classification": "...", "summary": "..."})
+    """
+    # Generate markdown from OCR (assumes generate_markdown_from_ocr is defined elsewhere)
+    contract_markdown = generate_markdown_from_ocr(client, employment_contract, EXTRACT_MODEL)
+    
+    # Extract employee signature from the combined markdown
+    extracted_signature_base64 = extract_employee_signature(contract_markdown, signature_alt="img-1.jpeg")
+    
+    # Read candidate's ground-truth signature from file
+    candidate_signature_base64 = encode_image(candidate_signature_path)
+    
+    # Compare the extracted signature with the candidate's signature
+    signature_comparison = compare_signatures(
+        extracted_signature_base64,
+        candidate_signature_base64,
+        client,
+        SIGNATURE_COMPARE_MODEL
+    )
+    
+    # Extract structured JSON from OCR markdown using chat completion
+    chat_response = client.chat.complete(
+        model="pixtral-large-latest",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    TextChunk(
+                        text=(
+                            f"This is employment contract's OCR in markdown:\n\n{contract_markdown}\n.\n"
+                            "Convert this into a sensible structured json response, with the keys 'employee_name', 'employee_address', 'employee_salary', 'employment_start_date', 'employee_signature_present' and 'employer_signature_present'. "
+                            "The date should be in the format DD.MM.YYYY. "
+                            "The output should be strictly be json with no extra commentary."
+                        )
+                    ),
+                ],
+            }
+        ],
+        response_format={"type": "json_object"},
+        temperature=0,
+    )
+    structured_response = json.loads(chat_response.choices[0].message.content)
+    
+    # Check employee info
+    employee_info_comparison = check_employee_info(structured_response, candidate_name, candidate_address)
+    
+    # Check employment start date validity
+    employment_start_date = structured_response.get("employment_start_date", "").strip()
+    employment_date_comparison = check_employment_start_date(employment_start_date, passport_expiry_date, submission_date)
+    
+    # Classify contract status based on the comparisons
+    classification_result = classify_contract_status(
+        employee_info_comparison,
+        employment_date_comparison,
+        signature_comparison,
+        client,
+        FINAL_ANALYSIS_MODEL
+    )
+    
+    return classification_result
+
+def analyze_employer_declaration_and_blue_card_fit(
+    client,
+    employer_declaration,
+    employment_contract,
+    blue_card_criteria,
+    EXTRACT_MODEL,
+    FINAL_ANALYSIS_MODEL,
+    StructuredOCRResponse,
+    StructuredOCRResponseforContract
+):
+    """
+    Processes the employer declaration and employment contract via OCR,
+    extracts structured JSON responses from both, and then analyzes the
+    accuracy of the employer declaration relative to the employment contract.
+    It also evaluates the Blue Card Fit based on the detailed employer declaration response.
+    
+    This function internally generates:
+      - contract_markdown from the employment contract.
+      - employer_declaration_markdown from the employer declaration.
+    
+    Args:
+        client: The Mistral client instance.
+        employer_declaration: A Path object for the employer declaration PDF.
+        employment_contract: A Path object for the employment contract PDF.
+        blue_card_criteria: Criteria (string) for evaluating the Blue Card Fit.
+        EXTRACT_MODEL: The OCR extraction model to use.
+        FINAL_ANALYSIS_MODEL: The model used for final analysis.
+        StructuredOCRResponse: The response format class for the full employer declaration.
+        StructuredOCRResponseforContract: The response format class for partial extraction (for contract comparison).
+    
+    Returns:
+        tuple: A tuple containing:
+            - declaration_accuracy (str): The analysis result comparing the employer declaration with the employment contract.
+            - blue_card_fit (str): The Blue Card Fit evaluation result.
+    """
+    # Generate OCR markdown for the employment contract
+    contract_markdown = generate_markdown_from_ocr(client, employment_contract, EXTRACT_MODEL)
+    
+    # Generate OCR markdown for the employer declaration
+    employer_declaration_markdown = generate_markdown_from_ocr(client, employer_declaration, EXTRACT_MODEL)
+    
+    # Extract detailed structured JSON from the employer declaration OCR markdown
+    chat_response_full = client.chat.parse(
+        model="pixtral-large-latest",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    TextChunk(
+                        text=(
+                            f"This is the employer declaration's OCR in markdown:\n{employer_declaration_markdown}\n.\n"
+                            "Convert this into a structured JSON response with the OCR contents in a sensible dictionnary."
+                        )
+                    )
+                ]
+            }
+        ],
+        response_format=StructuredOCRResponse,
+        temperature=0
+    )
+    total_employer_declaration_structured_response = dict(chat_response_full.choices[0].message.parsed)
+    
+    # Extract partial structured JSON from the employer declaration OCR markdown for contract comparison
+    chat_response_partial = client.chat.parse(
+        model="pixtral-large-latest",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    TextChunk(
+                        text=(
+                            f"This is the employer declaration's OCR in markdown:\n{employer_declaration_markdown}\n.\n"
+                            "Convert this into a structured JSON response with the OCR contents in a sensible dictionnary."
+                        )
+                    )
+                ]
+            }
+        ],
+        response_format=StructuredOCRResponseforContract,
+        temperature=0
+    )
+    partial_employer_declaration_structured_response = dict(chat_response_partial.choices[0].message.parsed)
+    
+    # Extract structured JSON from the employment contract OCR markdown for comparison
+    chat_response_contract = client.chat.parse(
+        model="pixtral-large-latest",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    TextChunk(
+                        text=(
+                            f"This is the employment contract's OCR in markdown:\n{contract_markdown}\n.\n"
+                            "Convert this into a structured JSON response with the OCR contents in a sensible dictionnary."
+                        )
+                    )
+                ]
+            }
+        ],
+        response_format=StructuredOCRResponseforContract,
+        temperature=0
+    )
+    contract_structured_response = dict(chat_response_contract.choices[0].message.parsed)
+    
+    # Analyze the comparison between the partial employer declaration and the employment contract
+    declaration_accuracy = analyze_declaration_accuracy(
+        str(partial_employer_declaration_structured_response),
+        str(contract_structured_response),
+        client,
+        FINAL_ANALYSIS_MODEL
+    )
+    
+    # Evaluate Blue Card Fit using the detailed employer declaration structured response
+    blue_card_fit = analyze_blue_card_fit(
+        str(total_employer_declaration_structured_response),
+        blue_card_criteria,
+        client,
+        FINAL_ANALYSIS_MODEL
+    )
+    
+    return declaration_accuracy, blue_card_fit
+
+
+
 def main():
     # Candidate and document details
     candidate_name = 'Deepti Singhal'
     candidate_address = 'Theresienstr. 999, 80333 Munich, Bayern'
     passport_expiry_date = '12.06.2024'
     submission_date = '15.12.2022'
-    blue_card_criteria_path = '/Users/q654642/Desktop/resAIde/resAIde/document-processing/prompts/blue_card_criteria.txt'
+    blue_card_criteria_path = '/Users/q654642/Desktop/resAIde/resAIde/document_processor/prompts/blue_card_criteria.txt'
     blue_card_criteria = read_txt_file(blue_card_criteria_path)
     
-    employment_contract_path = '/Users/q654642/Desktop/resAIde/resAIde/document-processing/deepti-singhal-documents/enhanced_employment_agreement.pdf'
+    employment_contract_path = '/Users/q654642/Desktop/resAIde/resAIde/document_processor/deepti-singhal-documents/enhanced_employment_agreement (1).pdf'
     employment_contract = Path(employment_contract_path)
-    candidate_signature_path = '/Users/q654642/Desktop/resAIde/resAIde/document-processing/deepti-singhal-documents/deepti-sign.png'
+    candidate_signature_path = '/Users/q654642/Desktop/resAIde/resAIde/document_processor/ground_truth/deepti-sign.png'
     
     # Initialize the Mistral client
     MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
@@ -418,165 +620,39 @@ def main():
     FINAL_ANALYSIS_MODEL = "mistral-large-latest"     # Used for overall analysis and classification
     SIGNATURE_COMPARE_MODEL = "pixtral-large-latest"  # Used specifically for signature image comparison
     
-    # Process the employment contract and get the combined markdown
-    contract_markdown = generate_markdown_from_ocr(client, employment_contract, EXTRACT_MODEL)
-    
-    # Extract employee signature from the combined markdown
-    extracted_signature_base64 = extract_employee_signature(contract_markdown, signature_alt="img-1.jpeg")
-    if extracted_signature_base64:
-        print("Employee signature extracted from markdown.")
-    else:
-        print("Employee signature image not found in the markdown.")
-    
-    # Read candidate's ground-truth signature from file
-    candidate_signature_base64 = encode_image(candidate_signature_path)
-    if candidate_signature_base64:
-        print("Candidate's ground-truth signature loaded.")
-    else:
-        print("Failed to load candidate's ground-truth signature.")
-    
-    # Compare the extracted signature with the candidate's signature
-    signature_comparison = compare_signatures(
-        extracted_signature_base64,
-        candidate_signature_base64,
-        client,
-        SIGNATURE_COMPARE_MODEL
-    )
-    print("Signature Comparison Result:")
-    print(signature_comparison)
-    
-    # Extract structured JSON from OCR markdown using chat completion
-    chat_response = client.chat.complete(
-        model="pixtral-large-latest",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    TextChunk(
-                        text=(
-                            f"This is employment contract's OCR in markdown:\n\n{contract_markdown}\n.\n"
-                            "Convert this into a sensible structured json response, with the keys 'employee_name', 'employee_address', 'employee_salary', 'employment_start_date', 'employee_signature_present' and 'employer_signature_present'. The date should be in the format DD.MM.YYYY "
-                            "The output should be strictly be json with no extra commentary"
-                        )
-                    ),
-                ],
-            }
-        ],
-        response_format={"type": "json_object"},
-        temperature=0,
-    )
-    
-    employer_declaration_structured_response = json.loads(chat_response.choices[0].message.content)
-    print(json.dumps(employer_declaration_structured_response, indent=4))
-    
-    # Check employee info
-    employee_info_comparison = check_employee_info(employer_declaration_structured_response, candidate_name, candidate_address)
-    print("Employee Info Comparison Result:")
-    print(employee_info_comparison)
-    
-    employment_start_date = employer_declaration_structured_response.get("employment_start_date", "").strip()
-    
-    # Check employment start date validity
-    employment_date_comparison = check_employment_start_date(employment_start_date, passport_expiry_date, submission_date)
-    print("Employment Start Date Comparison Result:")
-    print(employment_date_comparison)
-    
-    # Classify contract status
-    classification_result = classify_contract_status(
-        employee_info_comparison,
-        employment_date_comparison,
-        signature_comparison,
-        client,
-        FINAL_ANALYSIS_MODEL
-    )
-    if classification_result:
-        print("Classification Result:")
-        print(classification_result.get("classification", "").strip())
-        print("Summary:")
-        print(classification_result.get("summary", "").strip())
-    else:
-        print("Classification failed.")
+    # Classify the contract based on the extracted information
 
+    contract_classification_result = classify_contract(
+        client=client,
+        employment_contract=employment_contract,
+        candidate_signature_path=candidate_signature_path,
+        candidate_name=candidate_name,
+        candidate_address=candidate_address,
+        passport_expiry_date=passport_expiry_date,
+        submission_date=submission_date,
+        EXTRACT_MODEL=EXTRACT_MODEL,
+        SIGNATURE_COMPARE_MODEL=SIGNATURE_COMPARE_MODEL,
+        FINAL_ANALYSIS_MODEL=FINAL_ANALYSIS_MODEL
+    )
+    print("Contract Classification Result:")
+    print(contract_classification_result)
     # Read the Employer Declaration form
-    employer_declaration_path = '/Users/q654642/Desktop/resAIde/resAIde/document-processing/deepti-singhal-documents/deepti-erklaerung-zum-beschaeftigungsverhaeltnis_ba047549-signed.pdf'
+    employer_declaration_path = '/Users/q654642/Desktop/resAIde/resAIde/document_processor/deepti-singhal-documents/deepti-erklaerung-zum-beschaeftigungsverhaeltnis_ba047549-signed (1).pdf'
     employer_declaration = Path(employer_declaration_path)
-    employer_declaration_markdown = generate_markdown_from_ocr(client, employer_declaration, EXTRACT_MODEL)
-
-    # Extract detailed structured JSON from OCR markdown of the Employer Declaration form for Blue Card Fit
-    chat_response = client.chat.parse(
-        model="pixtral-large-latest",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    TextChunk(text=(
-                        f"This is the employer declaration's OCR in markdown:\n{employer_declaration_markdown}\n.\n"
-                        "Convert this into a structured JSON response "
-                        "with the OCR contents in a sensible dictionnary."
-                        )
-                    )
-                ]
-            }
-        ],
-        response_format=StructuredOCRResponse,
-        temperature=0
-    )
-    total_employer_declaration_structured_response = dict(chat_response.choices[0].message.parsed)
-
-    #Extract partial structured JSON from OCR markdown of the Employer Declaration form for Contract comparison
-    chat_response = client.chat.parse(
-        model="pixtral-large-latest",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    TextChunk(text=(
-                        f"This is the employer declaration's OCR in markdown:\n{employer_declaration_markdown}\n.\n"
-                        "Convert this into a structured JSON response "
-                        "with the OCR contents in a sensible dictionnary."
-                        )
-                    )
-                ]
-            }
-        ],
-        response_format=StructuredOCRResponseforContract,
-        temperature=0
-    )
-    partial_employer_declaration_structured_response = dict(chat_response.choices[0].message.parsed)
-    #print(employer_declaration_structured_response)
-
-    # Extract structured JSON from OCR markdown of the Employment Contract
-    chat_response = client.chat.parse(
-        model="pixtral-large-latest",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    TextChunk(text=(
-                        f"This is the employment contract's OCR in markdown:\n{contract_markdown}\n.\n"
-                        "Convert this into a structured JSON response "
-                        "with the OCR contents in a sensible dictionnary."
-                        )
-                    )
-                ]
-            }
-        ],
-        response_format=StructuredOCRResponseforContract,
-        temperature=0
-    )
-    contract_structured_response = dict(chat_response.choices[0].message.parsed)
-    #print(contract_structured_response)
-
-    # Analyze the comparisons between the Employer Declaration and Employment Contract
-    declaration_accuracy = analyze_declaration_accuracy(
-        str(partial_employer_declaration_structured_response), str(contract_structured_response), client, FINAL_ANALYSIS_MODEL
+        # Analyze the comparisons between the Employer Declaration and Employment Contract
+    declaration_accuracy, blue_card_fit = analyze_employer_declaration_and_blue_card_fit(
+        client=client,
+        employer_declaration=employer_declaration,
+        employment_contract=employment_contract,
+        blue_card_criteria=blue_card_criteria,
+        EXTRACT_MODEL=EXTRACT_MODEL,
+        FINAL_ANALYSIS_MODEL=FINAL_ANALYSIS_MODEL,
+        StructuredOCRResponse=StructuredOCRResponse,
+        StructuredOCRResponseforContract=StructuredOCRResponseforContract
     )
     print("Analysis Result:\n")
     print(declaration_accuracy)
-    ## Analyze the comparisons between the Employer Declaration and Blue Card Criteria
-    blue_card_fit = analyze_blue_card_fit(
-        str(total_employer_declaration_structured_response), blue_card_criteria, client, FINAL_ANALYSIS_MODEL
-    )
+    
     print("Blue Card Fit Result:\n")
     print(blue_card_fit)
 
