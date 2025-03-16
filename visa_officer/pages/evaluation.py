@@ -132,7 +132,7 @@ def show():
                 # st.write("**LLM Verification:** Passport appears valid")
                 # Navigate two levels up from current file location
                 user_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'user', 'data', app_id)
-                ground_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'document_processing', 'ground_truth_passports')
+                ground_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'document_processor', 'ground_truth_passports')
     
                 passport_image_ground = Image.open(f"{ground_data_path}/indian_passport.png")
                 if not os.path.exists(f"{user_data_path}/indian_passport.png"):
