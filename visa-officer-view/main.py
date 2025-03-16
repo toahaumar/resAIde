@@ -56,10 +56,15 @@ def load_applications_data(data_dir):
                 'personal_info_status': 'Pending',
                 'criminal_history_status': 'Pending',
                 'officer_notes': '',
+                'name': '',
+                'nationality': ''
             }
             
             # Add the original application data
             processed_data.update(app_data)
+            processed_data['name'] = processed_data['PersonalInformation']['FirstName'] + " " + processed_data['PersonalInformation']['Surname']
+            processed_data['nationality'] = processed_data['PersonalInformation']['CurrentNationality']
+            processed_data['submission_date'] = '2022-12-15'
             
             # Add the application data to our list
             applications_data.append(processed_data)

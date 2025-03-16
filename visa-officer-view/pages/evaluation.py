@@ -13,6 +13,11 @@ PERSONAL_INFO_REGISTRY = {
         "nationality": "Spain",
         "passport_number": "XY789012",
     },
+    "Deepti Singhal": {
+        "date_of_birth": "1981-06-02",
+        "nationality": "Indian",
+        "passport_number": "L9492297",
+    }
     # Add more entries as needed
 }
 
@@ -62,16 +67,16 @@ def show():
                     # Compare all crucial information
                     mismatches = []
                     fields_to_check = {
-                        'nationality': 'Nationality',
-                        'date_of_birth': 'Date of Birth',
-                        'passport_number': 'Passport Number'
+                        'nationality': 'CurrentNationality',
+                        'date_of_birth': 'DateOfBirth',
+                        # 'passport_number': 'Passport Number'
                     }
                     
                     for field, display_name in fields_to_check.items():
-                        if app_data[field] != registry_data[field]:
+                        if app_data['PersonalInformation'][display_name] != registry_data[field]:
                             mismatches.append({
                                 'field': display_name,
-                                'provided': app_data[field],
+                                'provided': app_data['PersonalInformation'][display_name],
                                 'registry': registry_data[field]
                             })
                     
@@ -175,7 +180,7 @@ def show():
                 if st.button("Save Document Feedback"):
                     save_feedback(app_id, 'document_status', feedback)
                     st.session_state.feedback_section = None  # Reset feedback section
-                    st.experimental_rerun()  # Rerun to update the expander
+                    st.rerun()  # Rerun to update the expander
             
             # Display saved feedback if it exists
             if app_id in EVALUATION_FEEDBACK and 'document_status' in EVALUATION_FEEDBACK[app_id]:
@@ -231,7 +236,7 @@ def show():
                 if st.button("Save Criminal History Feedback"):
                     save_feedback(app_id, 'criminal_history_status', feedback)
                     st.session_state.feedback_section = None  # Reset feedback section
-                    st.experimental_rerun()  # Rerun to update the expander
+                    st.rerun()  # Rerun to update the expander
             
             # Display saved feedback if it exists
             if app_id in EVALUATION_FEEDBACK and 'criminal_history_status' in EVALUATION_FEEDBACK[app_id]:
@@ -372,8 +377,34 @@ def save_feedback(app_id, field, feedback):
     update_evaluation_status(app_id, field, 'Feedback')
 
 def save_overall_feedback(app_id, status, feedback):
+    print(feedback)
     OVERALL_FEEDBACK[app_id] = {
         'status': status,
         'feedback': feedback,
         'timestamp': str(datetime.now())
     }
+
+    # Read and update the application_data.json file
+    import os
+    import json
+    
+    # Navigate two levels up from current file location
+    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'user', 'data', app_id, 'application_data.json')
+    
+    try:
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+            
+        # Update feedback for the application
+        data['final_feedback'] = {
+            'status': status,
+            'message': feedback,
+            'timestamp': str(datetime.now())
+        }
+        
+        # Write back to the file
+        with open(json_path, 'w') as f:
+            json.dump(data, f, indent=4)
+            
+    except Exception as e:
+        st.error(f"Error updating application data: {str(e)}")
