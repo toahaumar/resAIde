@@ -9,7 +9,13 @@ import pandas as pd
 
 # Set page configuration
 st.set_page_config(page_title="res[AI]de - Visa Immigration Fast Processing", page_icon="🌍", layout="centered")
-
+# Display logo in the center
+left_co, cent_co,last_co = st.columns(3)
+with cent_co:
+    st.image(
+        "../assets/logo.png",
+        width=200,
+    )
 # Paths for saving data
 DATA_FOLDER = "data"
 # File to store user credentials
@@ -828,6 +834,11 @@ def track_application_view():
         elif auto_checks_status == "rejected":
             color = status_color_mapping[auto_checks_status]
             st.error(f'❌ Automatic checks have been rejected.')
+            automatic_checks_reason = automatic_checks.get("feedback", "")
+            col1, col2 = st.columns([1,7])
+            with col2:
+                with st.expander("Click for Reason", expanded=False):
+                    st.write(automatic_checks_reason)
     
             # st.error("Automatic checks have been rejected.")
         else:
@@ -848,13 +859,18 @@ def track_application_view():
         elif final_feedback_status == "feedback_required":
             color = status_color_mapping[final_feedback_status]
             st.warning(f':information_source:  Feedback is required for final decision. Please check your email.')
-            st.warning(f':information_source:  Visa apppointment not yet provided')
+            st.info(f':hourglass_flowing_sand: Visa apppointment not yet provided')
 
     
             # st.warning("Feedback is required for final decision. Please check your email.")
         elif final_feedback_status == "rejected":
             color = status_color_mapping[final_feedback_status]
             st.error(f'❌ Visa officer rejected your application.')
+            final_feedback_reason = final_feedback.get("message", "")
+            col1, col2 = st.columns([1,7])
+            with col2:
+                with st.expander("Click for Reason", expanded=False):
+                    st.write(final_feedback_reason)
             st.error(f'❌ Visa apppointment not yet provided')
 
         else:
