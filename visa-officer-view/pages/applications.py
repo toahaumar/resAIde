@@ -1,5 +1,6 @@
 import streamlit as st
-
+from utils.registry import PERSONAL_INFO_REGISTRY
+from .evaluation import save_personal_info_feedback
 
 def show():
     st.title("Applications")
@@ -101,5 +102,33 @@ def show():
 
 
 def view_application(app_id):
+    # Get application data
+    app_data = st.session_state.applications[st.session_state.applications['application_id'] == app_id].iloc[0]
+    
+    # Only run automatic checks if this is a new review (status is "Not Started")
+    if app_data['status'] == "Not Started":
+        applicant_name = app_data['name']
+        
+        # Check if person exists in registry and generate appropriate message
+        if applicant_name in PERSONAL_INFO_REGISTRY:
+            registry_data = PERSONAL_INFO_REGISTRY[applicant_name]
+            mismatches = []
+            fields_to_check = {
+                'nationality': 'CurrentNationality',
+                'date_of_birth': 'DateOfBirth',
+            }
+            
+            for field, display_name in fields_to_check.items():
+                if app_data['PersonalInformation'][display_name] != registry_data[field]:
+                    mismatches.append(f"{display_name}: Provided '{app_data['PersonalInformation'][display_name]}' does not match registry '{registry_data[field]}'")
+            
+            if len(mismatches) == 0:
+                save_personal_info_feedback(app_id, 'approved', f"All automatic checks passed")
+            else:
+                feedback_message = "Discrepancies found: " + "; ".join(mismatches)
+                save_personal_info_feedback(app_id, 'rejected', feedback_message)
+        else:
+            save_personal_info_feedback(app_id, 'rejected', "Invalid personal details!")
+    
     st.session_state.current_application = app_id
     st.session_state.page = "evaluation"

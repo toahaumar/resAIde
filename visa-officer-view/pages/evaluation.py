@@ -1,25 +1,7 @@
 import streamlit as st
 from datetime import datetime
+from utils.registry import PERSONAL_INFO_REGISTRY
 
-# Add this at the top of the file with other imports
-PERSONAL_INFO_REGISTRY = {
-    "John Doe": {
-        "date_of_birth": "1990-05-15",
-        "nationality": "USA",
-        "passport_number": "AB123456",
-    },
-    "Maria Garcia": {
-        "date_of_birth": "1988-03-21",
-        "nationality": "Spain",
-        "passport_number": "XY789012",
-    },
-    "Deepti Singhal": {
-        "date_of_birth": "1981-06-02",
-        "nationality": "Indian",
-        "passport_number": "L9492297",
-    }
-    # Add more entries as needed
-}
 
 OVERALL_FEEDBACK = {}  # Dictionary to store feedback for each application
 EVALUATION_FEEDBACK = {}  # Dictionary to store individual evaluation feedback
@@ -350,6 +332,33 @@ def update_evaluation_status(app_id, field, status):
     index = st.session_state.applications[st.session_state.applications['application_id'] == app_id].index[0]
     st.session_state.applications.at[index, field] = status
     
+    # If this is a personal info evaluation, save the automatic check results
+    if field == 'personal_info_status':
+        app_data = st.session_state.applications[st.session_state.applications['application_id'] == app_id].iloc[0]
+        applicant_name = app_data['name']
+        
+        if status == 'Approved':
+            save_personal_info_feedback(app_id, 'approved', "")
+        elif status == 'Rejected':
+            # Check if person exists in registry and generate appropriate message
+            if applicant_name in PERSONAL_INFO_REGISTRY:
+                registry_data = PERSONAL_INFO_REGISTRY[applicant_name]
+                mismatches = []
+                fields_to_check = {
+                    'nationality': 'CurrentNationality',
+                    'date_of_birth': 'DateOfBirth',
+                }
+                
+                for field, display_name in fields_to_check.items():
+                    if app_data['PersonalInformation'][display_name] != registry_data[field]:
+                        mismatches.append(f"{display_name}: Provided '{app_data['PersonalInformation'][display_name]}' does not match registry '{registry_data[field]}'")
+                
+                feedback_message = "Discrepancies found: " + "; ".join(mismatches)
+            else:
+                feedback_message = "Person not found in central registry"
+            
+            save_personal_info_feedback(app_id, 'rejected', feedback_message)
+    
     # Update overall status
     personal = st.session_state.applications.at[index, 'personal_info_status']
     document = st.session_state.applications.at[index, 'document_status']
@@ -400,6 +409,33 @@ def save_overall_feedback(app_id, status, feedback):
             'status': status,
             'message': feedback,
             'timestamp': str(datetime.now())
+        }
+        
+        # Write back to the file
+        with open(json_path, 'w') as f:
+            json.dump(data, f, indent=4)
+            
+    except Exception as e:
+        st.error(f"Error updating application data: {str(e)}")
+
+def save_personal_info_feedback(app_id, status, feedback_message):
+    import os
+    import json
+    
+    # Navigate two levels up from current file location
+    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'user', 'data', app_id, 'application_data.json')
+    
+    try:
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+            
+        # Update automatic_checks directly
+        if 'automatic_checks' not in data:
+            data['automatic_checks'] = {}
+            
+        data['automatic_checks'] = {
+            'status': status.lower(),  # Convert to lowercase to match required format
+            'feedback': feedback_message
         }
         
         # Write back to the file
