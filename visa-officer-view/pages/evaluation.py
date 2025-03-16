@@ -1,7 +1,14 @@
+import os, sys
 import streamlit as st
 from datetime import datetime
 from utils.registry import PERSONAL_INFO_REGISTRY
+from streamlit_image_zoom import image_zoom
+import json
+import base64
+from dotenv import load_dotenv
+from mistralai import Mistral
 
+from PIL import Image
 
 OVERALL_FEEDBACK = {}  # Dictionary to store feedback for each application
 EVALUATION_FEEDBACK = {}  # Dictionary to store individual evaluation feedback
@@ -118,11 +125,95 @@ def show():
                 
                 # Document checks
                 st.subheader("Passport Check")
-                st.write("**Passport Number:** AB123456")
-                st.write("**Issue Date:** 2020-06-01")
-                st.write("**Expiry Date:** 2030-06-01")
-                st.write("**Issuing Authority:** Department of State")
-                st.write("**LLM Verification:** Passport appears valid")
+                # st.write("**Passport Number:** AB123456")
+                # st.write("**Issue Date:** 2020-06-01")
+                # st.write("**Expiry Date:** 2030-06-01")
+                # st.write("**Issuing Authority:** Department of State")
+                # st.write("**LLM Verification:** Passport appears valid")
+                # Navigate two levels up from current file location
+                user_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'user', 'data', app_id)
+                ground_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'document_processing', 'ground_truth_passports')
+    
+                passport_image_ground = Image.open(f"{ground_data_path}/indian_passport.png")
+                if not os.path.exists(f"{user_data_path}/indian_passport.png"):
+                    st.error("Uploaded passport image not found")
+                else:
+                    passport_image_upload = Image.open(f"{user_data_path}/indian_passport.png")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("Ground Truth Passport")
+                        image_zoom(passport_image_ground)
+                    with col2:  
+                        st.write("Uploaded Passport")
+                        image_zoom(passport_image_upload)
+
+                # Navigate two levels up and then two levels down to doc_processing/scripts
+                base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../document_processing/scripts"))
+                sys.path.insert(0, base_path)
+
+                # Now you can import from prop.py
+                from passport_comparison import extract_passport_data, compare_passport_json, compare_images, analyze_comparisons, classify_application
+
+
+                # Load environment variables from .env file
+                load_dotenv()
+
+                # Initialize the Mistral client
+                MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+                if not MISTRAL_API_KEY:
+                    print("Error: MISTRAL_API_KEY is not set in the .env file.")
+                    sys.exit(1)
+                client = Mistral(api_key=MISTRAL_API_KEY)
+
+                # Define models:
+                EXTRACT_MODEL = "pixtral-12b-2409"            # Used for JSON extraction
+                IMAGE_COMPARE_MODEL = "pixtral-large-latest"   # Used for image comparison
+                FINAL_ANALYSIS_MODEL = "mistral-large-latest"    # Used for final analysis and classification
+
+                # Step 1: Extract passport data from the ground truth passport
+                print("Extracting data from ground truth passport...")
+                ground_truth_data = extract_passport_data(f"{ground_data_path}/indian_passport.png", client, EXTRACT_MODEL)
+                if not ground_truth_data:
+                    print("Error: Could not extract data from the ground truth passport image.")
+                    sys.exit(1)
+                
+                # Copy the JSON schema from the ground truth extraction
+                schema = json.dumps(ground_truth_data, indent=2)
+                
+                # Step 2: Extract passport data from the uploaded passport using the ground truth schema
+                print("Extracting data from uploaded passport using the ground truth schema...")
+                uploaded_data = extract_passport_data(f"{user_data_path}/indian_passport.png", client, EXTRACT_MODEL, schema=schema)
+                if not uploaded_data:
+                    print("Error: Could not extract data from the uploaded passport image.")
+                    sys.exit(1)
+                
+                # Step 3: Compare the JSON outputs
+                json_comparison = compare_passport_json(ground_truth_data, uploaded_data)
+                print("JSON Comparison:")
+                print(json_comparison)
+                
+                # Step 4: Compare the images via LLM using the 'pixtral-large-latest' model
+                image_comparison = compare_images(f"{ground_data_path}/indian_passport.png", f"{user_data_path}/indian_passport.png", client, IMAGE_COMPARE_MODEL)
+                print("Image Comparison:")
+                print(image_comparison)
+                
+                # Step 5: Provide final analysis (concise, max two sentences) using the 'mistral-large-latest' model
+                final_analysis = analyze_comparisons(json_comparison, image_comparison, client, FINAL_ANALYSIS_MODEL)
+                print("Final Analysis:")
+                print(final_analysis)
+                
+                # Step 6: Classify the application using the classifier function
+                classification = classify_application(json_comparison, image_comparison, client, FINAL_ANALYSIS_MODEL)
+                print("Application Classification:")
+                print(classification)
+
+                st.write("Final Analysis:")
+                st.write(final_analysis)
+
+                st.write("Application Classification:")
+                st.write(classification)
+
+                
                 
                 st.subheader("Financial Document Check")
                 st.write("**Bank Statement:** Account shows sufficient funds")
@@ -394,8 +485,6 @@ def save_overall_feedback(app_id, status, feedback):
     }
 
     # Read and update the application_data.json file
-    import os
-    import json
     
     # Navigate two levels up from current file location
     json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'user', 'data', app_id, 'application_data.json')
@@ -419,8 +508,6 @@ def save_overall_feedback(app_id, status, feedback):
         st.error(f"Error updating application data: {str(e)}")
 
 def save_personal_info_feedback(app_id, status, feedback_message):
-    import os
-    import json
     
     # Navigate two levels up from current file location
     json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'user', 'data', app_id, 'application_data.json')
