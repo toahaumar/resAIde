@@ -6,6 +6,7 @@ from streamlit_image_zoom import image_zoom
 import json
 import base64
 from mistralai import Mistral
+from pathlib import Path
 
 from PIL import Image
 
@@ -13,6 +14,10 @@ OVERALL_FEEDBACK = {}  # Dictionary to store feedback for each application
 EVALUATION_FEEDBACK = {}  # Dictionary to store individual evaluation feedback
 
 def show():
+    # Navigate two levels up and then two levels down to document_processor/scripts
+    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../document_processor/scripts"))
+    sys.path.insert(0, base_path)
+
     if "evaluation_updated" not in st.session_state:
         st.session_state.evaluation_updated = False
 
@@ -30,13 +35,6 @@ def show():
         
         # Overall status
         st.write("### Overall Status")
-        # status_col1, status_col2, status_col3 = st.columns(3)
-        # with status_col1:
-        #     st.write("Not Started" if app_data['status'] == 'Not Started' else "")
-        # with status_col2:
-        #     st.write("In Progress" if app_data['status'] == 'In Progress' else "")
-        # with status_col3:
-        #     st.write("Completed" if app_data['status'] == 'Completed' else "")
         
         # Personal Info Evaluation
         with st.expander("PERSONAL INFO EVALUATION", expanded=True):
@@ -113,7 +111,7 @@ def show():
             # Display saved feedback if it exists
             if app_id in EVALUATION_FEEDBACK and 'personal_info_status' in EVALUATION_FEEDBACK[app_id]:
                 st.warning(f"💬 Feedback saved: {EVALUATION_FEEDBACK[app_id]['personal_info_status']}")
-        
+
         # Document Evaluation
         with st.expander("DOCUMENT EVALUATION (LLM)", expanded=True):
             if app_data['document_status'] == 'Approved':
@@ -140,10 +138,6 @@ def show():
                     with col2:  
                         st.write("Uploaded Passport")
                         image_zoom(passport_image_upload)
-
-                # Navigate two levels up and then two levels down to document_processor/scripts
-                base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../document_processor/scripts"))
-                sys.path.insert(0, base_path)
 
                 # Now you can import from prop.py
                 from passport_comparison import extract_passport_data, compare_passport_json, compare_images, analyze_comparisons, classify_application
@@ -227,28 +221,165 @@ def show():
                     st.error(final_analysis)
             
                 st.subheader("Employment Contract Verification", divider="blue")
-                st.write("Please find the LLM analysis of this document below. Review the employment contract below (if required).")
-                employment_pdf_path = os.path.join(user_data_path, 'enhanced_employment_agreement.pdf')
-                if os.path.exists(employment_pdf_path):
-                    # Display PDF in an iframe with scrolling
-                    with open(employment_pdf_path, "rb") as f:
-                        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-                    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" style="width: 100%; height: 80vh;" type="application/pdf"></iframe>'
-                    st.markdown(pdf_display, unsafe_allow_html=True)
-                else:
-                    st.error("Work contract not found")
+                st.write("Please find the LLM analysis of this document below.")
 
-                st.subheader("Bundesagentur Declaration of Employment Verification", divider="blue")
-                st.write("Please find the LLM analysis of this document below. Review the declaration below (if required).")
-                employment_pdf_path = os.path.join(user_data_path, 'deepti-erklaerung-zum-beschaeftigungsverhaeltnis_ba047549-signed.pdf')
-                if os.path.exists(employment_pdf_path):
-                    # Display PDF in an iframe with scrolling
-                    with open(employment_pdf_path, "rb") as f:
+                # Get paths for required files
+                employment_contract_path = os.path.join(user_data_path, 'enhanced_employment_agreement.pdf')
+                candidate_signature_path = os.path.join(ground_data_path, 'deepti-sign.png')
+
+                # Initialize Mistral client if not already done
+                if 'mistral_client' not in st.session_state:
+                    MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+                    if not MISTRAL_API_KEY:
+                        st.error("Error: MISTRAL_API_KEY is not set in the .env file.")
+                    else:
+                        st.session_state.mistral_client = Mistral(api_key=MISTRAL_API_KEY)
+
+                # Define models
+                EXTRACT_MODEL = "mistral-ocr-latest"
+                SIGNATURE_COMPARE_MODEL = "pixtral-large-latest"
+                FINAL_ANALYSIS_MODEL = "mistral-large-latest"
+
+                # Get application data
+                json_path = os.path.join(user_data_path, 'application_data.json')
+                with open(json_path, 'r') as f:
+                    application_data = json.load(f)
+
+                from contract_and_employer_declaration_processing import classify_contract
+
+                if "contract_analysis" in application_data:
+                    contract_classification_result = application_data["contract_analysis"]
+                else:
+                    # Run contract classification if not already done
+                    contract_classification_result = classify_contract(
+                        client=st.session_state.mistral_client,
+                        employment_contract=Path(employment_contract_path),
+                        candidate_signature_path=candidate_signature_path,
+                        candidate_name=app_data['name'],
+                        candidate_address=app_data['ResidenceData']['AddressOfResidenceInMunich'],
+                        passport_expiry_date="12.06.2024",
+                        submission_date="15.12.2022",
+                        EXTRACT_MODEL=EXTRACT_MODEL,
+                        SIGNATURE_COMPARE_MODEL=SIGNATURE_COMPARE_MODEL,
+                        FINAL_ANALYSIS_MODEL=FINAL_ANALYSIS_MODEL
+                    )
+
+                    # Save the analysis result
+                    application_data['contract_analysis'] = contract_classification_result
+                    with open(json_path, 'w') as f:
+                        json.dump(application_data, f, indent=4)
+
+                # Display contract analysis results
+                st.write("**Contract Analysis Results:**")
+                classification = contract_classification_result.get('classification', '').lower()
+                summary = contract_classification_result.get('summary', '')
+
+                if classification == 'green':
+                    st.success(f"✅ {summary}")
+                elif classification == 'yellow':
+                    st.warning(f"⚠️ {summary}")
+                else:
+                    st.error(f"❌ {summary}")
+
+                st.write("**Employment Contract Document:**")
+                if os.path.exists(employment_contract_path):
+                    with open(employment_contract_path, "rb") as f:
                         base64_pdf = base64.b64encode(f.read()).decode('utf-8')
                     pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" style="width: 100%; height: 80vh;" type="application/pdf"></iframe>'
                     st.markdown(pdf_display, unsafe_allow_html=True)
                 else:
-                    st.error("Bundesagentur declaration of employment not found")
+                    st.error("Employer declaration not found")
+
+                # Add Declaration of Employment Analysis
+                st.write("**Declaration of Employment Analysis Results:**")
+                
+                # Get paths for required files
+                employer_declaration_path = os.path.join(user_data_path, 'deepti-erklaerung-zum-beschaeftigungsverhaeltnis_ba047549-signed.pdf')
+                blue_card_criteria_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'document_processor/prompts/blue_card_criteria.txt')
+
+                from contract_and_employer_declaration_processing import analyze_employer_declaration_and_blue_card_fit, StructuredOCRResponse, StructuredOCRResponseforContract
+
+                if "declaration_analysis" in application_data:
+                    declaration_accuracy = application_data["declaration_analysis"]
+                    blue_card_fit = application_data["blue_card_analysis"]
+                else:
+                    # Read blue card criteria
+                    with open(blue_card_criteria_path, 'r') as f:
+                        blue_card_criteria = f.read()
+
+                    # Run declaration and blue card analysis if not already done
+                    declaration_accuracy, blue_card_fit = analyze_employer_declaration_and_blue_card_fit(
+                        client=st.session_state.mistral_client,
+                        employer_declaration=Path(employer_declaration_path),
+                        employment_contract=Path(employment_contract_path),
+                        blue_card_criteria=blue_card_criteria,
+                        EXTRACT_MODEL=EXTRACT_MODEL,
+                        FINAL_ANALYSIS_MODEL=FINAL_ANALYSIS_MODEL,
+                        StructuredOCRResponse=StructuredOCRResponse,
+                        StructuredOCRResponseforContract=StructuredOCRResponseforContract
+                    )
+
+                    # Save the analysis results
+                    application_data['declaration_analysis'] = json.loads(declaration_accuracy)
+                    application_data['blue_card_analysis'] = json.loads(blue_card_fit)
+                    with open(json_path, 'w') as f:
+                        json.dump(application_data, f, indent=4)
+
+                # Display declaration analysis results
+                declaration_data = json.loads(declaration_accuracy) if isinstance(declaration_accuracy, str) else declaration_accuracy
+                declaration_classification = declaration_data.get('classification', '').lower()
+
+                if declaration_classification == 'green':
+                    st.success("✅ Declaration matches contract perfectly")
+                elif declaration_classification == 'yellow':
+                    st.warning("⚠️ Minor discrepancies found in declaration")
+                else:
+                    st.error("❌ Significant discrepancies found in declaration")
+
+                # # Display similarities and differences
+                # if 'similarities' in declaration_data:
+                #     st.write("**Matching Fields:**")
+                #     for similarity in declaration_data['similarities']:
+                #         st.write(f"✓ {similarity}")
+
+                # if 'differences' in declaration_data:
+                #     st.write("**Discrepancies Found:**")
+                #     for difference in declaration_data['differences']:
+                #         st.write(f"⚠️ {difference}")
+
+                # Display the employer declaration document
+                st.write("**Employer Declaration Document:**")
+                if os.path.exists(employer_declaration_path):
+                    with open(employer_declaration_path, "rb") as f:
+                        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+                    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" style="width: 100%; height: 80vh;" type="application/pdf"></iframe>'
+                    st.markdown(pdf_display, unsafe_allow_html=True)
+                else:
+                    st.error("Employer declaration not found")
+                
+                # Display Blue Card Fit Analysis
+                blue_card_data = json.loads(blue_card_fit) if isinstance(blue_card_fit, str) else blue_card_fit
+                blue_card_classification = blue_card_data.get('classification', '').lower()
+
+                if 'explanation' in blue_card_data:
+                    st.write("**Detailed Analysis:**")
+                    for _, v in blue_card_data['explanation'].items():
+                        st.write(v)
+
+                st.write("**Blue Card Eligibility Analysis:**")
+                if blue_card_classification == 'green':
+                    st.success("✅ Candidate meets Blue Card criteria")
+                elif blue_card_classification == 'yellow':
+                    st.warning("⚠️ Some clarifications needed for Blue Card eligibility")
+                else:
+                    st.error("❌ Candidate does not meet Blue Card criteria")
+
+                
+
+                # Save contract analysis to evaluation feedback
+                if app_id not in EVALUATION_FEEDBACK:
+                    EVALUATION_FEEDBACK[app_id] = {}
+                EVALUATION_FEEDBACK[app_id]['document_status'] = f"Contract Analysis: {classification.upper()}\n{summary}"
             
             # Decision buttons
             st.write("#### Decision")
