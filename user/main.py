@@ -996,6 +996,7 @@ def success_page():
             st.session_state["page"] = "home"  # Return to Account Page
             st.rerun()
 
+
 def track_application_view():
     st.title("Track Application Status")
     st.write("Check the current status of your visa application.")
@@ -1008,61 +1009,83 @@ def track_application_view():
         if os.path.exists(json_path):
             with open(json_path, "r") as json_file:
                 existing_data = json.load(json_file)
-            application_status = existing_data.get("application_status", "application_submitted")
+            application_status = existing_data.get("application_submission", "")
+            final_feedback = existing_data.get("final_feedback", {})
+            automatic_checks = existing_data.get("automatic_checks", {})
         else:
-            application_status = "application_submitted"
+            st.error("No application data found.")
+            return
     else:
         st.error("No application found.")
         return
 
-    # Define the stages and sub-statuses
-    stages = [
-        {"status": "application_submitted", "label": "Application Submitted", "color": "gray"},
-        {"status": "visa_officer_assigned", "label": "Visa Officer Assigned", "color": "gray"},
-        {"status": "automatic_checks_completed", "label": "Automatic Checks Completed", "color": "gray", "sub_statuses": [
-            {"status": "clear", "label": "Clear", "color": "gray"},
-            {"status": "feedback_required", "label": "Feedback Required", "color": "gray"},
-            {"status": "denied", "label": "Denied", "color": "gray"}
-        ]},
-        {"status": "visa_officer_check_completed", "label": "Visa Officer Check Completed", "color": "gray", "sub_statuses": [
-            {"status": "clear", "label": "Clear", "color": "gray"},
-            {"status": "feedback_required", "label": "Feedback Required", "color": "gray"},
-            {"status": "denied", "label": "Denied", "color": "gray"}
-        ]},
-        {"status": "visa_appointment_given", "label": "Visa Appointment Given", "color": "gray"}
-    ]
+    # Define the statuses with colors
+    status_color_mapping = {
+        "success": "green",
+        "feedback_required": "yellow",
+        "rejected": "red",
+        "denied": "red",
+        "clear": "green",
+        "unknown": "gray"
+    }
+    # Display Application Status
+    if application_status:
+        if application_status in status_color_mapping:
+            color = status_color_mapping[application_status]
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Application submitted successfully', unsafe_allow_html=True)
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa officer assigned to your application', unsafe_allow_html=True)
+    
 
-    # Update the colors based on the current status
-    for stage in stages:
-        if stage["status"] == application_status:
-            stage["color"] = "green"
-            break
-        stage["color"] = "green"
-        if "sub_statuses" in stage:
-            for sub_status in stage["sub_statuses"]:
-                if sub_status["status"] == application_status:
-                    sub_status["color"] = "green"
-                    break
-                sub_status["color"] = "green"
+    # Display Automatic Checks
+    if automatic_checks:
+        auto_checks_status = automatic_checks.get("status", "unknown")
+        if auto_checks_status == "success":
+            color = status_color_mapping[auto_checks_status]
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Automatic checks have been completed successfully. {auto_checks_status}', unsafe_allow_html=True)
+    
+            # st.success("Automatic checks have been completed successfully.")
+        elif auto_checks_status == "feedback_required":
+            color = status_color_mapping[auto_checks_status]
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Feedback is required for automatic checks. Please check your email.', unsafe_allow_html=True)
+    
+            # st.warning("Feedback is required for automatic checks. Please check your email.")
+        elif auto_checks_status == "rejected":
+            color = status_color_mapping[auto_checks_status]
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Automatic checks have been rejected.', unsafe_allow_html=True)
+    
+            # st.error("Automatic checks have been rejected.")
 
-    # # Display the stages with colored circles
-    # for stage in stages:
-    #     st.markdown(f'<span style="color:{stage["color"]};">&#9679;</span> {stage["label"]}', unsafe_allow_html=True)
-    #     if "sub_statuses" in stage:
-    #         for sub_status in stage["sub_statuses"]:
-    #             st.markdown(f'&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:{sub_status["color"]};">&#9679;</span> {sub_status["label"]}', unsafe_allow_html=True)
-    # Display the stages with colored circles
-    for stage in stages:
-        st.markdown(f'<span style="color:{stage["color"]};">&#9679;</span> {stage["label"]}', unsafe_allow_html=True)
-        if stage["color"] == "green" and "sub_statuses" in stage:
-            for sub_status in stage["sub_statuses"]:
-                st.markdown(f'&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:{sub_status["color"]};">&#9679;</span> {sub_status["label"]}', unsafe_allow_html=True)
+    # Display Final Feedback
+    if final_feedback:
+        final_feedback_status = final_feedback.get("status", "unknown")
+        if final_feedback_status == "success":
+            color = status_color_mapping[final_feedback_status]
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa officer check has been completed successfully', unsafe_allow_html=True)
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa apppointment given. Check your email', unsafe_allow_html=True)
+    
+            # st.success("Final feedback has been provided.")
+        elif final_feedback_status == "feedback_required":
+            color = status_color_mapping[final_feedback_status]
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Feedback is required for final decision. Please check your email.', unsafe_allow_html=True)
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa apppointment not yet provided', unsafe_allow_html=True)
 
+    
+            # st.warning("Feedback is required for final decision. Please check your email.")
+        elif final_feedback_status == "rejected":
+            color = status_color_mapping[final_feedback_status]
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa officer rejected your application.', unsafe_allow_html=True)
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa apppointment not yet provided', unsafe_allow_html=True)
+
+        else:
+            color = status_color_mapping[final_feedback_status]
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa officer check not completed', unsafe_allow_html=True)
+            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa apppointment not yet provided', unsafe_allow_html=True)
+
+   
     # Button to go back to the account page
     if st.button("Go to Home", use_container_width=True):
         st.session_state["page"] = "home"
         st.rerun()
-
 
 # Routing logic
 def router():
