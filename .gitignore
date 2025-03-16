@@ -172,3 +172,10 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# secrets
+secrets.*
+
+# data directories
+candidate/data
+visa_officer/data
