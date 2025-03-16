@@ -210,7 +210,8 @@ def account_view():
 
             with col_work:
                 if st.button("Track Application"):
-                    st.session_state.app_state = "track_application"
+                    # st.session_state.app_state = "track_application"
+                    st.session_state.page = "track_application"
                     st.rerun()
                     # st.text_input("Enter Application ID:", key="track_id")
                     # if st.button("Track", key="track_button"):
@@ -991,8 +992,8 @@ def success_page():
             st.session_state["page"] = "track_application"  # Change page to Track Application
             st.rerun()
     with col_account:
-        if st.button("Go to Account", use_container_width=True):
-            st.session_state["page"] = "account"  # Return to Account Page
+        if st.button("Go to Home", use_container_width=True):
+            st.session_state["page"] = "home"  # Return to Account Page
             st.rerun()
 
 def track_application_view():
@@ -1044,10 +1045,16 @@ def track_application_view():
                     break
                 sub_status["color"] = "green"
 
+    # # Display the stages with colored circles
+    # for stage in stages:
+    #     st.markdown(f'<span style="color:{stage["color"]};">&#9679;</span> {stage["label"]}', unsafe_allow_html=True)
+    #     if "sub_statuses" in stage:
+    #         for sub_status in stage["sub_statuses"]:
+    #             st.markdown(f'&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:{sub_status["color"]};">&#9679;</span> {sub_status["label"]}', unsafe_allow_html=True)
     # Display the stages with colored circles
     for stage in stages:
         st.markdown(f'<span style="color:{stage["color"]};">&#9679;</span> {stage["label"]}', unsafe_allow_html=True)
-        if "sub_statuses" in stage:
+        if stage["color"] == "green" and "sub_statuses" in stage:
             for sub_status in stage["sub_statuses"]:
                 st.markdown(f'&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:{sub_status["color"]};">&#9679;</span> {sub_status["label"]}', unsafe_allow_html=True)
 
