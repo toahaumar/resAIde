@@ -5,7 +5,6 @@ from utils.registry import PERSONAL_INFO_REGISTRY
 from streamlit_image_zoom import image_zoom
 import json
 import base64
-from dotenv import load_dotenv
 from mistralai import Mistral
 
 from PIL import Image
@@ -131,7 +130,7 @@ def show():
                 # st.write("**Issuing Authority:** Department of State")
                 # st.write("**LLM Verification:** Passport appears valid")
                 # Navigate two levels up from current file location
-                user_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'user', 'data', app_id)
+                user_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'candidate', 'data', app_id)
                 ground_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'document_processor', 'ground_truth_passports')
     
                 passport_image_ground = Image.open(f"{ground_data_path}/indian_passport.png")
@@ -147,16 +146,12 @@ def show():
                         st.write("Uploaded Passport")
                         image_zoom(passport_image_upload)
 
-                # Navigate two levels up and then two levels down to doc_processing/scripts
-                base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../document_processing/scripts"))
+                # Navigate two levels up and then two levels down to document_processor/scripts
+                base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../document_processor/scripts"))
                 sys.path.insert(0, base_path)
 
                 # Now you can import from prop.py
                 from passport_comparison import extract_passport_data, compare_passport_json, compare_images, analyze_comparisons, classify_application
-
-
-                # Load environment variables from .env file
-                load_dotenv()
 
                 # Initialize the Mistral client
                 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
@@ -487,7 +482,7 @@ def save_overall_feedback(app_id, status, feedback):
     # Read and update the application_data.json file
     
     # Navigate two levels up from current file location
-    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'user', 'data', app_id, 'application_data.json')
+    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'candidate', 'data', app_id, 'application_data.json')
     
     try:
         with open(json_path, 'r') as f:
@@ -510,7 +505,7 @@ def save_overall_feedback(app_id, status, feedback):
 def save_personal_info_feedback(app_id, status, feedback_message):
     
     # Navigate two levels up from current file location
-    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'user', 'data', app_id, 'application_data.json')
+    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'candidate', 'data', app_id, 'application_data.json')
     
     try:
         with open(json_path, 'r') as f:

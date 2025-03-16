@@ -2,6 +2,7 @@ import json
 import os
 import pandas as pd
 import streamlit as st
+from dotenv import load_dotenv
 from datetime import datetime
 from pages import home, applications, evaluation, resources
 
@@ -125,7 +126,7 @@ if "page" not in st.session_state:
     st.session_state.page = "home"
 
 # Load applications data from user/data directory
-data_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '../user/data'))
+data_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'candidate', 'data'))
 print(f"Data directory path: {data_directory}")
 
 if "applications" not in st.session_state:
@@ -166,6 +167,9 @@ with col1:
 with col2:
     st.write("**Officer:** Jane Wilson", unsafe_allow_html=True)
     st.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d')}", unsafe_allow_html=True)
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Main content based on the selected page
 if st.session_state.page == "home":
