@@ -14,11 +14,11 @@ st.set_page_config(
 logo_path = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'logo.png'))
 
 # Create a header with logo and navigation
-header_cols = st.columns([0.8, 0.5, 0.8, 5, 2])  # Adjusted ratios to bring elements closer
+header_cols = st.columns([1.2, 0.6, 0.9, 4, 2])  # Adjusted ratios to bring elements closer
 
 with header_cols[0]:
     if os.path.exists(logo_path):
-        st.image(logo_path, width=250)  # Reduced width for inline layout
+        st.image(logo_path, width=300)  # Reduced width for inline layout
     else:
         print(f"Logo not found at: {logo_path}")
 
