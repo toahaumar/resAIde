@@ -1,6 +1,4 @@
-import json
 import os
-import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from datetime import datetime
@@ -11,6 +9,28 @@ from utils.data import load_applications_data
 st.set_page_config(
     page_title="Visa Officer Portal", layout="wide", initial_sidebar_state="collapsed"
 )
+
+# Load and display logo
+logo_path = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'logo.png'))
+
+# Create a header with logo and navigation
+header_cols = st.columns([0.8, 0.5, 0.8, 5, 2])  # Adjusted ratios to bring elements closer
+
+with header_cols[0]:
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=250)  # Reduced width for inline layout
+    else:
+        print(f"Logo not found at: {logo_path}")
+
+with header_cols[1]:
+    st.button("Home", on_click=lambda: setattr(st.session_state, "page", "home"))
+
+with header_cols[2]:
+    st.button("Applications", on_click=lambda: setattr(st.session_state, "page", "applications"))
+
+with header_cols[4]:
+    st.write("**Officer:** Jane Wilson", unsafe_allow_html=True)
+    st.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d')}", unsafe_allow_html=True)
 
 # Initialize session state
 if "page" not in st.session_state:
@@ -47,17 +67,6 @@ if not st.session_state.applications.empty:
         if notification not in st.session_state.notifications:
             st.session_state.notifications.append(notification)
             st.toast(notification)
-
-# Create a top navigation bar
-col1, col2 = st.columns([6, 1])  # Adjust column widths as needed
-
-with col1:
-    st.button("Home", on_click=lambda: setattr(st.session_state, "page", "home"))
-    st.button("Applications", on_click=lambda: setattr(st.session_state, "page", "applications"))
-
-with col2:
-    st.write("**Officer:** Jane Wilson", unsafe_allow_html=True)
-    st.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d')}", unsafe_allow_html=True)
 
 # Load environment variables from .env file
 load_dotenv()

@@ -40,6 +40,7 @@ def show():
         
         # Personal Info Evaluation
         with st.expander("PERSONAL INFO EVALUATION", expanded=True):
+            st.subheader("Personal Information Check", divider="blue")
             if app_data['personal_info_status'] == 'Approved':
                 st.success("✅ Personal Information Evaluation: APPROVED")
             elif app_data['personal_info_status'] == 'Rejected':
@@ -80,7 +81,7 @@ def show():
                     st.error("⚠️ Person not found in central registry")
             
             # Decision buttons
-            st.write("### Decision")
+            st.markdown("### Decision")
             personal_col1, personal_col2, personal_col3 = st.columns(3)
             with personal_col1:
                 st.button("APPROVE", key="personal_approve", 
@@ -123,13 +124,7 @@ def show():
                 st.write("Review the applicant's documents using LLM-assisted verification.")
                 
                 # Document checks
-                st.subheader("Passport Check")
-                # st.write("**Passport Number:** AB123456")
-                # st.write("**Issue Date:** 2020-06-01")
-                # st.write("**Expiry Date:** 2030-06-01")
-                # st.write("**Issuing Authority:** Department of State")
-                # st.write("**LLM Verification:** Passport appears valid")
-                # Navigate two levels up from current file location
+                st.subheader("Passport Verification", divider="blue")
                 user_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'candidate', 'data', app_id)
                 ground_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'document_processor', 'ground_truth')
     
@@ -230,23 +225,33 @@ def show():
                     st.warning(final_analysis)
                 else:
                     st.error(final_analysis)
-                
-                st.subheader("Financial Document Check")
-                st.write("**Bank Statement:** Account shows sufficient funds")
-                st.write("**Income Verification:** Monthly income: $5,000")
-                st.write("**LLM Analysis:** Financial status meets requirements")
-                
-                st.subheader("Visa-specific Document Check")
-                st.write(f"**Document Type:** {app_data['visa_type']} visa supporting documents")
-                if app_data['visa_type'] == 'Work':
-                    st.write("**Work Contract:** Verified with employer")
-                    st.write("**Position:** Software Engineer")
-                elif app_data['visa_type'] == 'Student':
-                    st.write("**University Acceptance:** Verified with institution")
-                    st.write("**Program:** Computer Science")
+            
+                st.subheader("Employment Contract Verification", divider="blue")
+                st.write("Please find the LLM analysis of this document below. Review the employment contract below (if required).")
+                employment_pdf_path = os.path.join(user_data_path, 'enhanced_employment_agreement.pdf')
+                if os.path.exists(employment_pdf_path):
+                    # Display PDF in an iframe with scrolling
+                    with open(employment_pdf_path, "rb") as f:
+                        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+                    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" style="width: 100%; height: 80vh;" type="application/pdf"></iframe>'
+                    st.markdown(pdf_display, unsafe_allow_html=True)
+                else:
+                    st.error("Work contract not found")
+
+                st.subheader("Bundesagentur Declaration of Employment Verification", divider="blue")
+                st.write("Please find the LLM analysis of this document below. Review the declaration below (if required).")
+                employment_pdf_path = os.path.join(user_data_path, 'deepti-erklaerung-zum-beschaeftigungsverhaeltnis_ba047549-signed.pdf')
+                if os.path.exists(employment_pdf_path):
+                    # Display PDF in an iframe with scrolling
+                    with open(employment_pdf_path, "rb") as f:
+                        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+                    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" style="width: 100%; height: 80vh;" type="application/pdf"></iframe>'
+                    st.markdown(pdf_display, unsafe_allow_html=True)
+                else:
+                    st.error("Bundesagentur declaration of employment not found")
             
             # Decision buttons
-            st.write("### Decision")
+            st.write("#### Decision")
             doc_col1, doc_col2, doc_col3 = st.columns(3)
             with doc_col1:
                 st.button("APPROVE", key="doc_approve", 
