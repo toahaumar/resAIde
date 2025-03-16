@@ -17,7 +17,8 @@ CREDENTIALS_FILE = ".streamlit/secrets.toml"
 
 # Function to generate a unique application ID
 def generate_appid(user_email):
-    return hashlib.md5(f"{user_email}{datetime.now()}".encode()).hexdigest()
+    unique_number = abs(hash(f"{user_email}{datetime.now()}")) % (10 ** 8)
+    return f"APP{unique_number:08d}"
 
 # Function to check for an existing app ID
 def get_existing_appid(user_email):
@@ -63,6 +64,11 @@ def hash_password(password):
 
 # Function to load credentials from the TOML file
 def load_credentials():
+    if not os.path.exists(CREDENTIALS_FILE):
+        # Create the file if it doesn't exist
+        os.makedirs(os.path.dirname(CREDENTIALS_FILE), exist_ok=True)
+        with open(CREDENTIALS_FILE, "w") as file:
+            toml.dump({}, file)
     with open(CREDENTIALS_FILE, "r") as file:
         return toml.load(file)
 
@@ -146,6 +152,7 @@ def login_signup_view():
                 credentials["users"] = users
                 save_credentials(credentials)
                 st.success("Signup successful! You can now log in.")
+                st.session_state["page"] = "login"
                 st.rerun()  # Force rerun to update login status
 
 def account_view():
@@ -161,7 +168,7 @@ def account_view():
             st.rerun()
 
     if st.session_state.get("logged_in"):
-        st.write(f"Welcome back, **{st.session_state.user_email}**!")
+        st.write(f"Welcome, **{st.session_state.user_email}**!")
 
         # Check for an existing application ID
         existing_appid = get_existing_appid(st.session_state.user_email)
@@ -175,7 +182,7 @@ def account_view():
             if os.path.exists(json_path):
                 with open(json_path, "r") as json_file:
                     existing_data = json.load(json_file)
-                application_status = existing_data.get("status", "in_process")
+                application_status = existing_data.get("application_submission", "in_process")
             else:
                 application_status = "in_process"
         else:
@@ -204,9 +211,11 @@ def account_view():
 
             with col_work:
                 if st.button("Track Application"):
-                    st.text_input("Enter Application ID:", key="track_id")
-                    if st.button("Track", key="track_button"):
-                        st.success("Tracking your application...")  # Simulated response
+                    st.session_state.app_state = "track_application"
+                    st.rerun()
+                    # st.text_input("Enter Application ID:", key="track_id")
+                    # if st.button("Track", key="track_button"):
+                    #     st.success("Tracking your application...")  # Simulated response
 
         # Existing Application View (Resume or Start New)
         elif st.session_state.app_state == "existing_application":
@@ -259,103 +268,6 @@ def account_view():
         st.warning("You must log in to access this page.")
         st.session_state["page"] = "login"  # Redirect to login/signup view
         st.rerun()
-
-# def account_view():
-#     title_text, logout_btn = st.columns([3, 1])
-#     title_text.title("Your Account")
-
-#     with logout_btn:
-#         if st.button("Logout"):
-#             st.session_state.logged_in = False
-#             st.session_state.user_email = ""
-#             st.session_state["page"] = "home"
-#             st.success("You have logged out.")
-#             st.rerun()
-
-#     if st.session_state.get("logged_in"):
-#         st.write(f"Welcome back, **{st.session_state.user_email}**!")
-
-#         # Check for an existing application ID
-#         existing_appid = get_existing_appid(st.session_state.user_email)
-#         if existing_appid:
-#             st.write(f"**Existing Application ID:** {existing_appid}")
-#             st.session_state.appid = existing_appid  # Store the App ID in session state
-
-#         # Session state for tracking views within the account page
-#         if "app_state" not in st.session_state:
-#             st.session_state.app_state = "main"  # Default state
-
-#         # Main account page actions
-#         if st.session_state.app_state == "main":
-#             col_stud, col_work = st.columns(2)
-
-#             with col_stud:
-#                 if st.button("Start Application"):
-#                     if existing_appid:
-#                         # If an existing application exists, show options to resume or start new
-#                         st.session_state.app_state = "existing_application"
-#                     else:
-#                         # No existing application; go to visa selection view
-#                         st.session_state.app_state = "visa_selection"
-#                     st.rerun()
-
-#             with col_work:
-#                 if st.button("Track Application"):
-#                     st.text_input("Enter Application ID:", key="track_id")
-#                     if st.button("Track", key="track_button"):
-#                         st.success("Tracking your application...")  # Simulated response
-
-#         # Existing Application View (Resume or Start New)
-#         elif st.session_state.app_state == "existing_application":
-#             st.subheader("Existing Application Detected")
-#             st.write("Would you like to resume your existing application or start a new one?")
-
-#             col1, col2 = st.columns(2)
-#             with col1:
-#                 if st.button("Resume Application"):
-#                     st.session_state.page = "application_process"  # Resume application process
-#                     st.rerun()
-
-#             with col2:
-#                 if st.button("Start New Application"):
-#                     # Delete the old application folder if it exists
-#                     if existing_appid:
-#                         old_app_folder = os.path.join(DATA_FOLDER, existing_appid)
-#                         if os.path.exists(old_app_folder):
-#                             shutil.rmtree(old_app_folder)  # Delete the folder and all its contents
-#                             st.write(f"Deleted old application data for App ID: {existing_appid}")
-
-#                     # Generate a new App ID for the user
-#                     new_appid = generate_appid(st.session_state.user_email)
-#                     save_appid_to_toml(st.session_state.user_email, new_appid)
-#                     st.session_state.appid = new_appid
-
-#                     # Redirect to visa selection view
-#                     st.session_state.app_state = "visa_selection"
-#                     st.rerun()
-
-#         # Visa selection view for new application
-#         elif st.session_state.app_state == "visa_selection":
-#             st.subheader("Choose Visa Type")
-#             st.write("Please choose the type of visa you want to apply for:")
-
-#             col1, col2 = st.columns(2)
-#             with col1:
-#                 if st.button("Study Visa"):
-#                     # Application process starts for Study Visa
-#                     st.session_state.page = "application_process"
-#                     st.rerun()
-
-#             with col2:
-#                 if st.button("Work Visa"):
-#                     # Application process starts for Work Visa
-#                     st.session_state.page = "application_process"
-#                     st.rerun()
-
-#     else:
-#         st.warning("You must log in to access this page.")
-#         st.session_state["page"] = "login"  # Redirect to login/signup view
-#         st.rerun()
 
 def application_process(user_email):
     # Initialize state for navigation if not already set
@@ -892,6 +804,84 @@ def legal_info_form(user_email):
 #             st.session_state["page"] = "success_page"
 #             st.rerun()
 
+# def livelihood_info_form(user_email):
+#     st.title("Step 4: Livelihood Information")
+#     st.write("Provide your livelihood details.")
+
+#     # Load existing app ID and data, if available
+#     appid = st.session_state.get("appid", get_existing_appid(user_email))
+#     if appid:
+#         app_folder = os.path.join(DATA_FOLDER, appid)
+#         json_path = os.path.join(app_folder, "application_data.json")
+#         if os.path.exists(json_path):
+#             with open(json_path, "r") as json_file:
+#                 existing_data = json.load(json_file)
+#             livelihood_info_data = existing_data.get("LivelihoodInformation", {})
+#         else:
+#             livelihood_info_data = {}
+#     else:
+#         livelihood_info_data = {}
+
+#     # Prefill form fields with existing data or leave editable if no data
+#     subsistence_means = st.text_input(
+#         "Means of Subsistence (e.g., Employment, Savings, etc.)",
+#         value=livelihood_info_data.get("MeansOfSubsistence", ""),
+#         disabled=bool(livelihood_info_data.get("MeansOfSubsistence"))
+#     )
+
+#     # Upload supporting documents
+#     uploaded_docs = st.file_uploader(
+#         "Upload Proof of Income or Livelihood Documents (optional)",
+#         type=["pdf", "docx", "jpg", "png"],
+#         accept_multiple_files=True,
+#         key="livelihood_docs"
+#     )
+
+#     # Save the uploaded documents locally
+#     uploaded_doc_paths = []
+#     if uploaded_docs:
+#         # Ensure the app folder exists
+#         if not os.path.exists(app_folder):
+#             os.makedirs(app_folder)
+
+#         for doc in uploaded_docs:
+#             doc_path = os.path.join(app_folder, doc.name)
+#             with open(doc_path, "wb") as file:
+#                 file.write(doc.read())
+#             uploaded_doc_paths.append(doc_path)
+
+#     # Navigation buttons
+#     col_back, col_next = st.columns([1, 1])
+#     with col_back:
+#         if st.button("Back to Legal Info", use_container_width=True):
+#             st.session_state.current_step = "legal_info"
+#             st.rerun()
+#     with col_next:
+#         if st.button("Finish", use_container_width=True):
+#             # Load existing data
+#             if os.path.exists(json_path):
+#                 with open(json_path, "r") as json_file:
+#                     data = json.load(json_file)
+#             else:
+#                 data = {}
+
+#             # Save Livelihood Info data
+#             updated_livelihood_info_data = {
+#                 "MeansOfSubsistence": subsistence_means,
+#                 "UploadedDocuments": uploaded_doc_paths if uploaded_docs else livelihood_info_data.get("UploadedDocuments", [])
+#             }
+#             data["LivelihoodInformation"] = updated_livelihood_info_data
+
+#             # Set application status to success
+#             data["status"] = "success"
+
+#             # Save updated data to JSON
+#             save_data_to_json(appid, data)
+
+#             # Redirect to success page
+#             st.session_state["page"] = "success_page"
+#             st.rerun()
+
 def livelihood_info_form(user_email):
     st.title("Step 4: Livelihood Information")
     st.write("Provide your livelihood details.")
@@ -918,25 +908,41 @@ def livelihood_info_form(user_email):
     )
 
     # Upload supporting documents
-    uploaded_docs = st.file_uploader(
-        "Upload Proof of Income or Livelihood Documents (optional)",
+    passport_doc = st.file_uploader(
+        "Upload Passport (required)",
         type=["pdf", "docx", "jpg", "png"],
-        accept_multiple_files=True,
-        key="livelihood_docs"
+        key="passport_doc"
+    )
+    work_contract_doc = st.file_uploader(
+        "Upload Work Contract (required)",
+        type=["pdf", "docx", "jpg", "png"],
+        key="work_contract_doc"
+    )
+    employer_declaration_doc = st.file_uploader(
+        "Upload Employer Declaration (required)",
+        type=["pdf", "docx", "jpg", "png"],
+        key="employer_declaration_doc"
     )
 
     # Save the uploaded documents locally
-    uploaded_doc_paths = []
-    if uploaded_docs:
-        # Ensure the app folder exists
-        if not os.path.exists(app_folder):
-            os.makedirs(app_folder)
+    uploaded_doc_paths = {}
+    if passport_doc:
+        passport_path = os.path.join(app_folder, passport_doc.name)
+        with open(passport_path, "wb") as file:
+            file.write(passport_doc.read())
+        uploaded_doc_paths["Passport"] = passport_path
 
-        for doc in uploaded_docs:
-            doc_path = os.path.join(app_folder, doc.name)
-            with open(doc_path, "wb") as file:
-                file.write(doc.read())
-            uploaded_doc_paths.append(doc_path)
+    if work_contract_doc:
+        work_contract_path = os.path.join(app_folder, work_contract_doc.name)
+        with open(work_contract_path, "wb") as file:
+            file.write(work_contract_doc.read())
+        uploaded_doc_paths["WorkContract"] = work_contract_path
+
+    if employer_declaration_doc:
+        employer_declaration_path = os.path.join(app_folder, employer_declaration_doc.name)
+        with open(employer_declaration_path, "wb") as file:
+            file.write(employer_declaration_doc.read())
+        uploaded_doc_paths["EmployerDeclaration"] = employer_declaration_path
 
     # Navigation buttons
     col_back, col_next = st.columns([1, 1])
@@ -956,12 +962,12 @@ def livelihood_info_form(user_email):
             # Save Livelihood Info data
             updated_livelihood_info_data = {
                 "MeansOfSubsistence": subsistence_means,
-                "UploadedDocuments": uploaded_doc_paths if uploaded_docs else livelihood_info_data.get("UploadedDocuments", [])
+                "UploadedDocuments": uploaded_doc_paths if uploaded_doc_paths else livelihood_info_data.get("UploadedDocuments", {})
             }
             data["LivelihoodInformation"] = updated_livelihood_info_data
 
             # Set application status to success
-            data["status"] = "success"
+            data["application_submission"] = "success"
 
             # Save updated data to JSON
             save_data_to_json(appid, data)
@@ -986,6 +992,67 @@ def success_page():
             st.session_state["page"] = "account"  # Return to Account Page
             st.rerun()
 
+def track_application_view():
+    st.title("Track Application Status")
+    st.write("Check the current status of your visa application.")
+
+    # Load existing app ID and data, if available
+    appid = st.session_state.get("appid", get_existing_appid(st.session_state.user_email))
+    if appid:
+        app_folder = os.path.join(DATA_FOLDER, appid)
+        json_path = os.path.join(app_folder, "application_data.json")
+        if os.path.exists(json_path):
+            with open(json_path, "r") as json_file:
+                existing_data = json.load(json_file)
+            application_status = existing_data.get("application_status", "application_submitted")
+        else:
+            application_status = "application_submitted"
+    else:
+        st.error("No application found.")
+        return
+
+    # Define the stages and sub-statuses
+    stages = [
+        {"status": "application_submitted", "label": "Application Submitted", "color": "gray"},
+        {"status": "visa_officer_assigned", "label": "Visa Officer Assigned", "color": "gray"},
+        {"status": "automatic_checks_completed", "label": "Automatic Checks Completed", "color": "gray", "sub_statuses": [
+            {"status": "clear", "label": "Clear", "color": "gray"},
+            {"status": "feedback_required", "label": "Feedback Required", "color": "gray"},
+            {"status": "denied", "label": "Denied", "color": "gray"}
+        ]},
+        {"status": "visa_officer_check_completed", "label": "Visa Officer Check Completed", "color": "gray", "sub_statuses": [
+            {"status": "clear", "label": "Clear", "color": "gray"},
+            {"status": "feedback_required", "label": "Feedback Required", "color": "gray"},
+            {"status": "denied", "label": "Denied", "color": "gray"}
+        ]},
+        {"status": "visa_appointment_given", "label": "Visa Appointment Given", "color": "gray"}
+    ]
+
+    # Update the colors based on the current status
+    for stage in stages:
+        if stage["status"] == application_status:
+            stage["color"] = "green"
+            break
+        stage["color"] = "green"
+        if "sub_statuses" in stage:
+            for sub_status in stage["sub_statuses"]:
+                if sub_status["status"] == application_status:
+                    sub_status["color"] = "green"
+                    break
+                sub_status["color"] = "green"
+
+    # Display the stages with colored circles
+    for stage in stages:
+        st.markdown(f'<span style="color:{stage["color"]};">&#9679;</span> {stage["label"]}', unsafe_allow_html=True)
+        if "sub_statuses" in stage:
+            for sub_status in stage["sub_statuses"]:
+                st.markdown(f'&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:{sub_status["color"]};">&#9679;</span> {sub_status["label"]}', unsafe_allow_html=True)
+
+    # Button to go back to the account page
+    if st.button("Go to Account", use_container_width=True):
+        st.session_state["page"] = "account"
+        st.rerun()
+
 
 # Routing logic
 def router():
@@ -1006,8 +1073,8 @@ def router():
         application_process(st.session_state.get("user_email", ""))
     elif st.session_state["page"] == "success_page":
         success_page()
-    # elif st.session_state["page"] == "track_application":
-    #     track_application_view()  # Define your track application logic here
+    elif page == "track_application":
+        track_application_view()  # Define your track application logic here
     else:
         homepage_view()
 
