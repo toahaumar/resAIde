@@ -152,7 +152,6 @@ def login_signup_view():
                 credentials["users"] = users
                 save_credentials(credentials)
                 st.success("Signup successful! You can now log in.")
-                st.session_state["page"] = "login"
                 st.rerun()  # Force rerun to update login status
 
 def account_view():
@@ -256,12 +255,14 @@ def account_view():
                 if st.button("Study Visa"):
                     # Application process starts for Study Visa
                     st.session_state.page = "application_process"
+                    st.session_state.visa_type = "study"
                     st.rerun()
 
             with col2:
                 if st.button("Work Visa"):
                     # Application process starts for Work Visa
                     st.session_state.page = "application_process"
+                    st.session_state.visa_type = "work"
                     st.rerun()
 
     else:
@@ -389,7 +390,9 @@ def personal_info_form(user_email):
                     "FurtherResidenceInGermany": further_residence,
                     "RetainPermanentResidenceOutsideGermany": retain_residence_outside,
                     "LastResidenceInCountryOfOrigin": last_residence_origin
-                }
+                },
+                "visa_type": st.session_state.get("visa_type", "study")
+
             }
 
             # Create app ID if it doesn't exist
@@ -1049,8 +1052,8 @@ def track_application_view():
                 st.markdown(f'&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:{sub_status["color"]};">&#9679;</span> {sub_status["label"]}', unsafe_allow_html=True)
 
     # Button to go back to the account page
-    if st.button("Go to Account", use_container_width=True):
-        st.session_state["page"] = "account"
+    if st.button("Go to Home", use_container_width=True):
+        st.session_state["page"] = "home"
         st.rerun()
 
 
