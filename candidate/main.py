@@ -661,230 +661,6 @@ def legal_info_form(user_email):
             st.session_state.current_step = "livelihood_info"
             st.rerun()
 
-# def livelihood_info_form(user_email):
-#     st.title("Step 4: Livelihood Information")
-#     st.write("Provide your livelihood details.")
-
-#     # Load existing app ID and data, if available
-#     appid = st.session_state.get("appid", get_existing_appid(user_email))
-#     if appid:
-#         app_folder = os.path.join(DATA_FOLDER, appid)
-#         json_path = os.path.join(app_folder, "application_data.json")
-#         if os.path.exists(json_path):
-#             with open(json_path, "r") as json_file:
-#                 existing_data = json.load(json_file)
-#             livelihood_info_data = existing_data.get("LivelihoodInformation", {})
-#         else:
-#             livelihood_info_data = {}
-#     else:
-#         livelihood_info_data = {}
-
-#     # Prefill form fields with existing data or leave editable if no data
-#     subsistence_means = st.text_input(
-#         "Means of Subsistence (e.g., Employment, Savings, etc.)",
-#         value=livelihood_info_data.get("MeansOfSubsistence", ""),
-#         disabled=bool(livelihood_info_data.get("MeansOfSubsistence"))
-#     )
-
-#     # Upload supporting documents
-#     uploaded_docs = st.file_uploader(
-#         "Upload Proof of Income or Livelihood Documents (optional)",
-#         type=["pdf", "docx", "jpg", "png"],
-#         key="livelihood_docs"
-#     )
-
-#     # Save the uploaded document locally
-#     uploaded_doc_path = ""
-#     if uploaded_docs is not None:
-#         # Ensure the app folder exists
-#         if not os.path.exists(app_folder):
-#             os.makedirs(app_folder)
-
-#         uploaded_doc_path = os.path.join(app_folder, uploaded_docs.name)
-#         with open(uploaded_doc_path, "wb") as file:
-#             file.write(uploaded_docs.read())
-
-#     # Navigation buttons
-#     col_back, col_next = st.columns([1, 1])
-#     with col_back:
-#         if st.button("Back to Legal Info", use_container_width=True):
-#             st.session_state.current_step = "legal_info"
-#             st.rerun()
-#     with col_next:
-#         if st.button("Finish", use_container_width=True):
-#             # Load existing data
-#             if os.path.exists(json_path):
-#                 with open(json_path, "r") as json_file:
-#                     data = json.load(json_file)
-#             else:
-#                 data = {}
-
-#             # Save Livelihood Info data
-#             updated_livelihood_info_data = {
-#                 "MeansOfSubsistence": subsistence_means,
-#                 "UploadedDocuments": uploaded_doc_path if uploaded_docs else livelihood_info_data.get("UploadedDocuments", "")
-#             }
-#             data["LivelihoodInformation"] = updated_livelihood_info_data
-
-#             # Save updated data to JSON
-#             save_data_to_json(appid, data)
-
-#             # Redirect to success page
-#             st.session_state["page"] = "success_page"
-#             st.rerun()
-
-# def livelihood_info_form(user_email):
-#     st.title("Step 4: Livelihood Information")
-#     st.write("Provide your livelihood details.")
-
-#     # Load existing app ID and data, if available
-#     appid = st.session_state.get("appid", get_existing_appid(user_email))
-#     if appid:
-#         app_folder = os.path.join(DATA_FOLDER, appid)
-#         json_path = os.path.join(app_folder, "application_data.json")
-#         if os.path.exists(json_path):
-#             with open(json_path, "r") as json_file:
-#                 existing_data = json.load(json_file)
-#             livelihood_info_data = existing_data.get("LivelihoodInformation", {})
-#         else:
-#             livelihood_info_data = {}
-#     else:
-#         livelihood_info_data = {}
-
-#     # Prefill form fields with existing data or leave editable if no data
-#     subsistence_means = st.text_input(
-#         "Means of Subsistence (e.g., Employment, Savings, etc.)",
-#         value=livelihood_info_data.get("MeansOfSubsistence", ""),
-#         disabled=bool(livelihood_info_data.get("MeansOfSubsistence"))
-#     )
-
-#     # Upload supporting documents
-#     uploaded_docs = st.file_uploader(
-#         "Upload Proof of Income or Livelihood Documents (optional)",
-#         type=["pdf", "docx", "jpg", "png"],
-#         key="livelihood_docs"
-#     )
-
-#     # Save the uploaded document locally
-#     uploaded_doc_path = ""
-#     if uploaded_docs is not None:
-#         # Ensure the app folder exists
-#         if not os.path.exists(app_folder):
-#             os.makedirs(app_folder)
-
-#         uploaded_doc_path = os.path.join(app_folder, uploaded_docs.name)
-#         with open(uploaded_doc_path, "wb") as file:
-#             file.write(uploaded_docs.read())
-
-#     # Navigation buttons
-#     col_back, col_next = st.columns([1, 1])
-#     with col_back:
-#         if st.button("Back to Legal Info", use_container_width=True):
-#             st.session_state.current_step = "legal_info"
-#             st.rerun()
-#     with col_next:
-#         if st.button("Finish", use_container_width=True):
-#             # Load existing data
-#             if os.path.exists(json_path):
-#                 with open(json_path, "r") as json_file:
-#                     data = json.load(json_file)
-#             else:
-#                 data = {}
-
-#             # Save Livelihood Info data
-#             updated_livelihood_info_data = {
-#                 "MeansOfSubsistence": subsistence_means,
-#                 "UploadedDocuments": uploaded_doc_path if uploaded_docs else livelihood_info_data.get("UploadedDocuments", "")
-#             }
-#             data["LivelihoodInformation"] = updated_livelihood_info_data
-
-#             # Set application status to success
-#             data["status"] = "success"
-
-#             # Save updated data to JSON
-#             save_data_to_json(appid, data)
-
-#             # Redirect to success page
-#             st.session_state["page"] = "success_page"
-#             st.rerun()
-
-# def livelihood_info_form(user_email):
-#     st.title("Step 4: Livelihood Information")
-#     st.write("Provide your livelihood details.")
-
-#     # Load existing app ID and data, if available
-#     appid = st.session_state.get("appid", get_existing_appid(user_email))
-#     if appid:
-#         app_folder = os.path.join(DATA_FOLDER, appid)
-#         json_path = os.path.join(app_folder, "application_data.json")
-#         if os.path.exists(json_path):
-#             with open(json_path, "r") as json_file:
-#                 existing_data = json.load(json_file)
-#             livelihood_info_data = existing_data.get("LivelihoodInformation", {})
-#         else:
-#             livelihood_info_data = {}
-#     else:
-#         livelihood_info_data = {}
-
-#     # Prefill form fields with existing data or leave editable if no data
-#     subsistence_means = st.text_input(
-#         "Means of Subsistence (e.g., Employment, Savings, etc.)",
-#         value=livelihood_info_data.get("MeansOfSubsistence", ""),
-#         disabled=bool(livelihood_info_data.get("MeansOfSubsistence"))
-#     )
-
-#     # Upload supporting documents
-#     uploaded_docs = st.file_uploader(
-#         "Upload Proof of Income or Livelihood Documents (optional)",
-#         type=["pdf", "docx", "jpg", "png"],
-#         accept_multiple_files=True,
-#         key="livelihood_docs"
-#     )
-
-#     # Save the uploaded documents locally
-#     uploaded_doc_paths = []
-#     if uploaded_docs:
-#         # Ensure the app folder exists
-#         if not os.path.exists(app_folder):
-#             os.makedirs(app_folder)
-
-#         for doc in uploaded_docs:
-#             doc_path = os.path.join(app_folder, doc.name)
-#             with open(doc_path, "wb") as file:
-#                 file.write(doc.read())
-#             uploaded_doc_paths.append(doc_path)
-
-#     # Navigation buttons
-#     col_back, col_next = st.columns([1, 1])
-#     with col_back:
-#         if st.button("Back to Legal Info", use_container_width=True):
-#             st.session_state.current_step = "legal_info"
-#             st.rerun()
-#     with col_next:
-#         if st.button("Finish", use_container_width=True):
-#             # Load existing data
-#             if os.path.exists(json_path):
-#                 with open(json_path, "r") as json_file:
-#                     data = json.load(json_file)
-#             else:
-#                 data = {}
-
-#             # Save Livelihood Info data
-#             updated_livelihood_info_data = {
-#                 "MeansOfSubsistence": subsistence_means,
-#                 "UploadedDocuments": uploaded_doc_paths if uploaded_docs else livelihood_info_data.get("UploadedDocuments", [])
-#             }
-#             data["LivelihoodInformation"] = updated_livelihood_info_data
-
-#             # Set application status to success
-#             data["status"] = "success"
-
-#             # Save updated data to JSON
-#             save_data_to_json(appid, data)
-
-#             # Redirect to success page
-#             st.session_state["page"] = "success_page"
-#             st.rerun()
 
 def livelihood_info_form(user_email):
     st.title("Step 4: Livelihood Information")
@@ -1032,8 +808,8 @@ def track_application_view():
     if application_status:
         if application_status in status_color_mapping:
             color = status_color_mapping[application_status]
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Application submitted successfully', unsafe_allow_html=True)
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa officer assigned to your application', unsafe_allow_html=True)
+            st.success(f'✅  Application submitted successfully')
+            st.success(f'✅  Visa officer assigned to your application')
     
 
     # Display Automatic Checks
@@ -1041,45 +817,50 @@ def track_application_view():
         auto_checks_status = automatic_checks.get("status", "unknown")
         if auto_checks_status == "success":
             color = status_color_mapping[auto_checks_status]
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Automatic checks have been completed successfully. {auto_checks_status}', unsafe_allow_html=True)
+            st.success(f'✅ Automatic checks have been completed successfully.')
     
             # st.success("Automatic checks have been completed successfully.")
         elif auto_checks_status == "feedback_required":
             color = status_color_mapping[auto_checks_status]
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Feedback is required for automatic checks. Please check your email.', unsafe_allow_html=True)
+            st.warning(f':information_source: Feedback is required for automatic checks. Please check your email.')
     
             # st.warning("Feedback is required for automatic checks. Please check your email.")
         elif auto_checks_status == "rejected":
             color = status_color_mapping[auto_checks_status]
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Automatic checks have been rejected.', unsafe_allow_html=True)
+            st.error(f'❌ Automatic checks have been rejected.')
     
             # st.error("Automatic checks have been rejected.")
+        else:
+            color = status_color_mapping[auto_checks_status]
+            st.info(f':hourglass_flowing_sand: Automatic checks not yet completed')
+    
+            # st.warning("Automatic checks not yet completed.")
 
     # Display Final Feedback
     if final_feedback:
         final_feedback_status = final_feedback.get("status", "unknown")
         if final_feedback_status == "success":
             color = status_color_mapping[final_feedback_status]
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa officer check has been completed successfully', unsafe_allow_html=True)
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa apppointment given. Check your email', unsafe_allow_html=True)
+            st.success(f'✅ Visa officer check has been completed successfully')
+            st.success(f'✅  Visa apppointment given. Check your email')
     
             # st.success("Final feedback has been provided.")
         elif final_feedback_status == "feedback_required":
             color = status_color_mapping[final_feedback_status]
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Feedback is required for final decision. Please check your email.', unsafe_allow_html=True)
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa apppointment not yet provided', unsafe_allow_html=True)
+            st.warning(f':information_source:  Feedback is required for final decision. Please check your email.')
+            st.warning(f':information_source:  Visa apppointment not yet provided')
 
     
             # st.warning("Feedback is required for final decision. Please check your email.")
         elif final_feedback_status == "rejected":
             color = status_color_mapping[final_feedback_status]
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa officer rejected your application.', unsafe_allow_html=True)
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa apppointment not yet provided', unsafe_allow_html=True)
+            st.error(f'❌ Visa officer rejected your application.')
+            st.error(f'❌ Visa apppointment not yet provided')
 
         else:
             color = status_color_mapping[final_feedback_status]
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa officer check not completed', unsafe_allow_html=True)
-            st.markdown(f'<span style="color:{color};">&#9679;</span> Visa apppointment not yet provided', unsafe_allow_html=True)
+            st.info(f':hourglass_flowing_sand: Visa officer check not completed')
+            st.info(f':hourglass_flowing_sand: Visa apppointment not yet provided')
 
    
     # Button to go back to the account page
