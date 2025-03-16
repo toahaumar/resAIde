@@ -5,4 +5,4 @@ enableXsrfProtection = false
 
 [browser]
 serverAddress = "localhost"
-serverPort = 8501
+serverPort = 8502
