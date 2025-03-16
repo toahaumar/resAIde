@@ -131,7 +131,7 @@ def show():
                 # st.write("**LLM Verification:** Passport appears valid")
                 # Navigate two levels up from current file location
                 user_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'candidate', 'data', app_id)
-                ground_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'document_processor', 'ground_truth_passports')
+                ground_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'document_processor', 'ground_truth')
     
                 passport_image_ground = Image.open(f"{ground_data_path}/indian_passport.png")
                 if not os.path.exists(f"{user_data_path}/indian_passport.png"):
@@ -153,62 +153,83 @@ def show():
                 # Now you can import from prop.py
                 from passport_comparison import extract_passport_data, compare_passport_json, compare_images, analyze_comparisons, classify_application
 
-                # Initialize the Mistral client
-                MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
-                if not MISTRAL_API_KEY:
-                    print("Error: MISTRAL_API_KEY is not set in the .env file.")
-                    sys.exit(1)
-                client = Mistral(api_key=MISTRAL_API_KEY)
+                json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'candidate', 'data', app_id, 'application_data.json')
 
-                # Define models:
-                EXTRACT_MODEL = "pixtral-12b-2409"            # Used for JSON extraction
-                IMAGE_COMPARE_MODEL = "pixtral-large-latest"   # Used for image comparison
-                FINAL_ANALYSIS_MODEL = "mistral-large-latest"    # Used for final analysis and classification
+                with open(json_path, 'r') as f:
+                    data = json.load(f)
 
-                # Step 1: Extract passport data from the ground truth passport
-                print("Extracting data from ground truth passport...")
-                ground_truth_data = extract_passport_data(f"{ground_data_path}/indian_passport.png", client, EXTRACT_MODEL)
-                if not ground_truth_data:
-                    print("Error: Could not extract data from the ground truth passport image.")
-                    sys.exit(1)
-                
-                # Copy the JSON schema from the ground truth extraction
-                schema = json.dumps(ground_truth_data, indent=2)
-                
-                # Step 2: Extract passport data from the uploaded passport using the ground truth schema
-                print("Extracting data from uploaded passport using the ground truth schema...")
-                uploaded_data = extract_passport_data(f"{user_data_path}/indian_passport.png", client, EXTRACT_MODEL, schema=schema)
-                if not uploaded_data:
-                    print("Error: Could not extract data from the uploaded passport image.")
-                    sys.exit(1)
-                
-                # Step 3: Compare the JSON outputs
-                json_comparison = compare_passport_json(ground_truth_data, uploaded_data)
-                print("JSON Comparison:")
-                print(json_comparison)
-                
-                # Step 4: Compare the images via LLM using the 'pixtral-large-latest' model
-                image_comparison = compare_images(f"{ground_data_path}/indian_passport.png", f"{user_data_path}/indian_passport.png", client, IMAGE_COMPARE_MODEL)
-                print("Image Comparison:")
-                print(image_comparison)
-                
-                # Step 5: Provide final analysis (concise, max two sentences) using the 'mistral-large-latest' model
-                final_analysis = analyze_comparisons(json_comparison, image_comparison, client, FINAL_ANALYSIS_MODEL)
-                print("Final Analysis:")
-                print(final_analysis)
-                
-                # Step 6: Classify the application using the classifier function
-                classification = classify_application(json_comparison, image_comparison, client, FINAL_ANALYSIS_MODEL)
-                print("Application Classification:")
-                print(classification)
+                if "passport_analysis" in data:
+                    status = data["passport_analysis"]["status"]
+                    final_analysis = data["passport_analysis"]["feedback"]
+
+                else:
+                    # Initialize the Mistral client
+                    MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+                    if not MISTRAL_API_KEY:
+                        print("Error: MISTRAL_API_KEY is not set in the .env file.")
+                        sys.exit(1)
+                    client = Mistral(api_key=MISTRAL_API_KEY)
+
+                    # Define models:
+                    EXTRACT_MODEL = "pixtral-12b-2409"            # Used for JSON extraction
+                    IMAGE_COMPARE_MODEL = "pixtral-large-latest"   # Used for image comparison
+                    FINAL_ANALYSIS_MODEL = "mistral-large-latest"    # Used for final analysis and classification
+
+                    # Step 1: Extract passport data from the ground truth passport
+                    print("Extracting data from ground truth passport...")
+                    ground_truth_data = extract_passport_data(f"{ground_data_path}/indian_passport.png", client, EXTRACT_MODEL)
+                    if not ground_truth_data:
+                        print("Error: Could not extract data from the ground truth passport image.")
+                        sys.exit(1)
+                    
+                    # Copy the JSON schema from the ground truth extraction
+                    schema = json.dumps(ground_truth_data, indent=2)
+                    
+                    # Step 2: Extract passport data from the uploaded passport using the ground truth schema
+                    print("Extracting data from uploaded passport using the ground truth schema...")
+                    uploaded_data = extract_passport_data(f"{user_data_path}/indian_passport.png", client, EXTRACT_MODEL, schema=schema)
+                    if not uploaded_data:
+                        print("Error: Could not extract data from the uploaded passport image.")
+                        sys.exit(1)
+                    
+                    # Step 3: Compare the JSON outputs
+                    json_comparison = compare_passport_json(ground_truth_data, uploaded_data)
+                    print("JSON Comparison:")
+                    print(json_comparison)
+                    
+                    # Step 4: Compare the images via LLM using the 'pixtral-large-latest' model
+                    image_comparison = compare_images(f"{ground_data_path}/indian_passport.png", f"{user_data_path}/indian_passport.png", client, IMAGE_COMPARE_MODEL)
+                    print("Image Comparison:")
+                    print(image_comparison)
+                    
+                    # Step 5: Provide final analysis (concise, max two sentences) using the 'mistral-large-latest' model
+                    final_analysis = analyze_comparisons(json_comparison, image_comparison, client, FINAL_ANALYSIS_MODEL)
+                    print("Final Analysis:")
+                    print(final_analysis)
+                    
+                    # Step 6: Classify the application using the classifier function
+                    classification = classify_application(json_comparison, image_comparison, client, FINAL_ANALYSIS_MODEL)
+                    print("Application Classification:")
+                    print(classification)
+
+                    # save the llm analysis
+                    data['passport_analysis'] = {
+                        "status": classification["classification"],
+                        "feedback": final_analysis
+                    }
+
+                    with open(json_path, 'w') as f:
+                        json.dump(data, f, indent=4)
+
+                    status = classification["classification"]
 
                 st.write("Final Analysis:")
-                st.write(final_analysis)
-
-                st.write("Application Classification:")
-                st.write(classification)
-
-                
+                if status == "green":
+                    st.success(final_analysis)
+                elif status == "yellow":
+                    st.warning(final_analysis)
+                else:
+                    st.error(final_analysis)
                 
                 st.subheader("Financial Document Check")
                 st.write("**Bank Statement:** Account shows sufficient funds")
