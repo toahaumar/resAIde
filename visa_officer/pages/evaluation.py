@@ -289,22 +289,99 @@ def show():
             else:
                 st.write("Review the applicant's criminal history using rule-based checks.")
                 
-                # Criminal history checks
-                st.write("**Background Check Results:**")
-                st.write("- Local Criminal Database: No records found")
-                st.write("- International Alerts: None")
-                st.write("- Prior Visa Violations: None")
+                # Legal Violations Check
+                st.write("**Legal Violations Check:**")
+                legal_violations = app_data['LegalViolations']
+                registry_violations = {
+                    'deported': 'No',
+                    'rp_denied': 'No',
+                    'entry_visa_denied': 'No'
+                }
                 
-                # Risk assessment
-                risk_score = 0.2  # Mock score
-                st.write(f"**Risk Assessment Score:** {risk_score:.2f} (Low)")
-                st.progress(risk_score)
+                mismatches = []
+                risk_factors = 0
+                
+                # Check each violation type
+                violation_mapping = {
+                    'ExpelledDeportedOrRepelled': ('deported', 'Deportation History'),
+                    'ResidencePermitDenied': ('rp_denied', 'Residence Permit History'),
+                    'EntryVisaDenied': ('entry_visa_denied', 'Entry Visa History')
+                }
+                
+                for app_key, (reg_key, display_name) in violation_mapping.items():
+                    if legal_violations[app_key] != registry_violations[reg_key]:
+                        mismatches.append({
+                            'field': display_name,
+                            'provided': legal_violations[app_key],
+                            'registry': registry_violations[reg_key]
+                        })
+                        risk_factors += 1
+                    if legal_violations[app_key] == 'Yes':
+                        risk_factors += 2  # Additional risk for any 'Yes' response
+                
+                # Display discrepancies
+                if len(mismatches) == 0:
+                    st.success("✅ No discrepancies found in Legal Violation history.")
+                else:
+                    st.error("⚠️ Discrepancies found in the following fields:")
+                    for mismatch in mismatches:
+                        st.write(f"**{mismatch['field']}:**")
+                        st.write(f"- Declared: {mismatch['provided']}")
+                        st.write(f"- Registry: {mismatch['registry']}")
+                
+                # Calculate risk score (0.0 to 1.0)
+                max_risk_factors = 9  # Maximum possible risk factors (3 mismatches + 6 'Yes' responses)
+                risk_score = min(risk_factors / max_risk_factors, 1.0)
+                
+                # Display risk assessment
+                st.write("**Risk Assessment:**")
+                risk_level = "Low" if risk_score < 0.3 else "Medium" if risk_score < 0.7 else "High"
+                st.write(f"Risk Score: {risk_score:.2f} ({risk_level})")
+                risk_color = "green" if risk_score < 0.3 else "orange" if risk_score < 0.7 else "red"
+                st.markdown(f"<div style='width:100%; height:20px; background:{risk_color}; border-radius:10px'></div>", unsafe_allow_html=True)
                 
                 # Rule-based evaluation results
                 st.write("**Automated Rule Check Results:**")
-                st.write("- Rule 1: PASS - No criminal convictions")
-                st.write("- Rule 2: PASS - No immigration violations")
-                st.write("- Rule 3: PASS - No security concerns")
+                rules_passed = []
+                rules_failed = []
+                
+                # Rule 1: No deportation history
+                if legal_violations['ExpelledDeportedOrRepelled'] == 'No':
+                    rules_passed.append("No deportation history")
+                else:
+                    rules_failed.append("Has deportation history")
+                
+                # Rule 2: No residence permit denials
+                if legal_violations['ResidencePermitDenied'] == 'No':
+                    rules_passed.append("No residence permit denials")
+                else:
+                    rules_failed.append("Has residence permit denials")
+                
+                # Rule 3: No entry visa denials
+                if legal_violations['EntryVisaDenied'] == 'No':
+                    rules_passed.append("No entry visa denials")
+                else:
+                    rules_failed.append("Has entry visa denials")
+                
+                for rule in rules_passed:
+                    st.write(f"✅ PASS - {rule}")
+                for rule in rules_failed:
+                    st.write(f"❌ FAIL - {rule}")
+                
+                # Save evaluation feedback
+                feedback_message = f"Risk Assessment: {risk_level} (Score: {risk_score:.2f})\n"
+                if mismatches:
+                    feedback_message += "Discrepancies found:\n"
+                    for mismatch in mismatches:
+                        feedback_message += f"- {mismatch['field']}: Declared '{mismatch['provided']}' vs Registry '{mismatch['registry']}'\n"
+                if rules_failed:
+                    feedback_message += "Failed Rules:\n"
+                    for rule in rules_failed:
+                        feedback_message += f"- {rule}\n"
+                
+                if app_id not in EVALUATION_FEEDBACK:
+                    EVALUATION_FEEDBACK[app_id] = {}
+                EVALUATION_FEEDBACK[app_id]['criminal_history_status'] = feedback_message
             
             # Decision buttons
             st.write("### Decision")
